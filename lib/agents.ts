@@ -1,0 +1,257 @@
+import { MistakeLog } from "./store";
+
+export interface AgentProfile {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  description: string;
+  color: string;
+  accentClass: string;
+}
+
+export const AGENT_PROFILES: Record<string, AgentProfile> = {
+  Interviewer: {
+    id: "interviewer",
+    name: "Hardcore Harry",
+    role: "AI Senior Interviewer",
+    avatar: "👨‍💻",
+    description: "No-nonsense tech lead who pushes for optimal space/time complexity and deep architectural explanations.",
+    color: "#00E5FF",
+    accentClass: "border-cyan-glow bg-cyan-950/20 text-cyan-400"
+  },
+  Reviewer: {
+    id: "reviewer",
+    name: "Clean-Code Carl",
+    role: "Senior Code Reviewer",
+    avatar: "🧐",
+    description: "Obsessed with clean structures, descriptive variable naming, defensive coding, and maintainability.",
+    color: "#6366F1",
+    accentClass: "border-indigo-glow bg-indigo-950/20 text-indigo-400"
+  },
+  "Test Runner": {
+    id: "testrunner",
+    name: "Edge-Case Ethan",
+    role: "Validation Sandbox Engineer",
+    avatar: "🧪",
+    description: "Strict quality assurance bot that tests boundaries, empty payloads, duplicate keys, and latency overflows.",
+    color: "#10B981",
+    accentClass: "border-emerald-glow bg-emerald-950/20 text-emerald-400"
+  },
+  "Bug Hunter": {
+    id: "bughunter",
+    name: "Debugger Dan",
+    role: "Fault & Warning Locator",
+    avatar: "👾",
+    description: "Instantly spots index out-of-bounds, unhandled exceptions, and memory leaks before compiler runs.",
+    color: "#FF1744",
+    accentClass: "border-rose-glow bg-rose-950/20 text-rose-400"
+  },
+  Coach: {
+    id: "coach",
+    name: "Mentor Mindy",
+    role: "Interview Career Coach",
+    avatar: "🧠",
+    description: "Analyzes ELO progress, evaluates explanation clarity, and provides personalized daily practice agendas.",
+    color: "#FFC107",
+    accentClass: "border-amber-glow bg-amber-950/20 text-amber-400"
+  },
+  Assistant: {
+    id: "assistant",
+    name: "AI Copilot",
+    role: "Code Helper Agent",
+    avatar: "🤖",
+    description: "Your helpful code assistant, available in AI-Assisted mode. Tracks usage strictly to score prompt fluency.",
+    color: "#E2E8F0",
+    accentClass: "border-slate-700 bg-slate-800/40 text-slate-300"
+  }
+};
+
+/**
+ * Scan User Code (Heuristics Scanner)
+ * Observes real-time code changes in Monaco and flags Chess-style rating annotations
+ */
+export const scanUserCode = (code: string, language: string): MistakeLog[] => {
+  const logs: MistakeLog[] = [];
+  if (!code || code.trim().length === 0) return logs;
+
+  const lines = code.split("\n");
+
+  // 1. Check for nested loops (O(N^2) Complexity Warning)
+  let loopStartLine = -1;
+  let hasNestedLoop = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isLoop = /for\s*\(|while\s*\(|forEach|map\s*\(/.test(line);
+    if (isLoop) {
+      if (loopStartLine !== -1 && i - loopStartLine < 6) {
+        hasNestedLoop = true;
+        logs.push({
+          id: `nested-loop-${i}`,
+          type: "overcomplicated",
+          title: "High Computational Complexity",
+          description: "Detected nested loops/scans. This yields O(N^2) time complexity. Can we optimize using a hashing strategy?",
+          line: i + 1
+        });
+        break;
+      }
+      loopStartLine = i;
+    }
+  }
+
+  // 2. Check for Hashing / Lookup Table (Strong Move)
+  let foundMap = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/new\s+Map|new\s+Set|\{\}|\bdict\b|\[\w+\]\s*=\s*/.test(line)) {
+      foundMap = true;
+      logs.push({
+        id: `hashmap-${i}`,
+        type: "strong-move",
+        title: "Optimal Key-Based Hashing",
+        description: "Excellent trade-off decision! Leveraging key lookup structures allows sorting and retrieval in O(1) average-time.",
+        line: i + 1
+      });
+      break; // Only flag once
+    }
+  }
+
+  // 3. Check for Defensive Guards (Null/Empty Checks)
+  let hasDefensiveCheck = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/!\w+|===\s*null|===\s*undefined|!Array\.isArray|\.length\s*===?\s*0|not\s+\w+|len\b/.test(line)) {
+      hasDefensiveCheck = true;
+    }
+  }
+
+  if (!hasDefensiveCheck) {
+    logs.push({
+      id: "guard-missing",
+      type: "critical-miss",
+      title: "Missing Defensive Guard",
+      description: "Critical omission: The service lacks boundary check gates. Malformed, empty, or null arguments will cause a runtime crash.",
+      line: 3
+    });
+  } else {
+    // Flag excellent edge-case design
+    logs.push({
+      id: "guard-success",
+      type: "excellent-tradeoff",
+      title: "Secure Bound Controls",
+      description: "Strong move: Initial validation blocks handle null, undefined, or empty data states cleanly.",
+      line: 4
+    });
+  }
+
+  // 4. Check for Copilot Boilerplate (AI Overreliance check)
+  if (code.includes("// Generated by Copilot") || code.includes("/** AI Assist")) {
+    logs.push({
+      id: "ai-overreliance",
+      type: "ai-overreliance",
+      title: "AI Overreliance",
+      description: "Blind copy warning: Copied solution boilerplate verbatim from AI Assistant without detailing structural tradeoffs.",
+      line: 1
+    });
+  }
+
+  return logs;
+};
+
+/**
+ * AI Agent Chat Responders
+ * Integrates dynamic replies when typing in the workspace panels
+ */
+export const getAgentResponse = async (
+  agentType: keyof typeof AGENT_PROFILES,
+  userMessage: string,
+  currentCode: string,
+  challengeContext: string,
+  apiKey?: string
+): Promise<string> => {
+  const profile = AGENT_PROFILES[agentType];
+
+  if (!apiKey) {
+    // Local responsive template answers
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const msg = userMessage.toLowerCase();
+        
+        if (agentType === "Assistant") {
+          if (msg.includes("help") || msg.includes("code") || msg.includes("write")) {
+            resolve(`Here is a helpful snippet to guide you. Make sure you check boundary indices:\n\n\`\`\`javascript\nif (!records || records.length === 0) return [];\n// Use array filter to query matches\nconst filtered = records.filter(x => x.status === "active");\n\`\`\``);
+            return;
+          }
+          if (msg.includes("explain")) {
+            resolve("I can explain! An optimized filtering algorithm uses a single filter sweep `O(N)` followed by an in-place sort `O(N log N)`. This avoids memory allocation overhead.");
+            return;
+          }
+          resolve("How can I help you in your AI-Assisted coding workspace? You can ask me to explain algorithms, suggest helper structures, or draft custom checks.");
+          return;
+        }
+
+        if (agentType === "Interviewer") {
+          if (msg.includes("approach") || msg.includes("think")) {
+            resolve("Interesting strategy. How does this filter scale if the input streams are asynchronously loaded from separate db shards? What indexes would you add?");
+            return;
+          }
+          if (msg.includes("complexity") || msg.includes("time")) {
+            resolve("Right. In the worst-case, sorting will take O(N log N). Can we avoid sorting altogether if records were pre-indexed by a timestamp stream?");
+            return;
+          }
+          resolve("I see you are adjusting your editor workspace. Explain your choices so far: why that variable layout, and how do you handle overflow integers?");
+          return;
+        }
+
+        if (agentType === "Bug Hunter") {
+          if (currentCode.includes("length") || currentCode.includes("Array")) {
+            resolve("Dan here! I scanned your filters and it seems you've added safety guards. Good safety standard.");
+            return;
+          }
+          resolve("Dan here. Watch out! Ensure your sort values are always numerical types. If one of the priority tags is null, Javascript sorts it as undefined, breaking your output order!");
+          return;
+        }
+
+        resolve(`I am ${profile.name}. I am analyzing your workspace activities to formulate your final ELO metrics and mistake badges.`);
+      }, 700);
+    });
+  }
+
+  // Real Gemini LLM Dialogue Call
+  try {
+    const prompt = `You are the DevElo AI agent: ${profile.name} (${profile.role}).
+Personality: ${profile.description}
+
+Current Workspace State:
+- Challenge Target Context: ${challengeContext}
+- User's Current Code:
+\`\`\`
+${currentCode}
+\`\`\`
+
+User Message to you: "${userMessage}"
+
+Respond in-character, concisely, focusing directly on engineering principles. Give specific code advice, suggest complexity options, or ask targeted mock interview questions as your role dictates. Keep it dark, professional, and simplistic. Do not add long generic preambles.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    if (!response.ok) throw new Error("Gemini Agent Call failed");
+
+    const data = await response.json();
+    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return replyText || "System offline, failed to retrieve agent dialogue.";
+  } catch (err) {
+    console.error("Gemini Agent Error, fallback to local:", err);
+    return `[Fallback] ${profile.name} is observing your code. Check your parameters and ensure bounds validation exists.`;
+  }
+};

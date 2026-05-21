@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #000000;
+  --bg-surface: #0B0E14;
+  --bg-elevated: #10141B;
+  --bg-inset: #000000;
+
+  --border-default: #1A1F26;
+  --border-muted: #272E38;
+  --border-active: #E6EDF3;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #8B949E;
+  --text-muted: #484F58;
+  --text-link: #FFFFFF;
+
+  --accent-green: #3FB950;
+  --accent-red: #F85149;
+  --accent-yellow: #D29922;
+  --accent-blue: #58A6FF;
+
+  /* IDE Syntax Highlight Colors (IntelliJ Darcula / Github Dark) */
+  --syntax-keyword: #FF7B72;   /* Keyword Red-Orange */
+  --syntax-string: #7EE787;    /* String Light-Green */
+  --syntax-annotation: #D29922; /* Type/Annotation Yellow */
+  --syntax-number: #79C0FF;    /* Variable/Number Blue */
+  --syntax-type: #C9D1D9;      /* Class/Type White-silver */
+  --syntax-method: #D2A8FF;    /* Function/Method Purple */
+  --syntax-comment: #8B949E;   /* Comment Muted Gray */
+  --syntax-class: #C9D1D9;
+
+  --scrollbar-bg: #000000;
+  --scrollbar-thumb: #1A1F26;
+  --scrollbar-thumb-hover: #272E38;
+}
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-inset: var(--bg-inset);
+  --color-border: var(--border-default);
+  --color-border-muted: var(--border-muted);
+  --color-border-active: var(--border-active);
+  --color-green: var(--accent-green);
+  --color-red: var(--accent-red);
+  --color-yellow: var(--accent-yellow);
+  --color-blue: var(--accent-blue);
+  --color-muted: var(--text-muted);
+  --color-secondary: var(--text-secondary);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  overflow-x: hidden;
+}
+
+/* Minimalist scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Terminal surface — flat dark card, no blur/glass */
+.terminal-surface {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+}
+.terminal-surface:hover {
+  border-color: var(--border-muted);
+}
+
+/* Feature card — Solid dark charcoal with fine border (GitHub Copilot style) */
+.feature-card {
+  background: #0B0E14;
+  border: 1px solid #1A1F26;
+  border-radius: 12px;
+  padding: 2.25rem 2rem;
+  transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+}
+.feature-card:hover {
+  border-color: #272E38;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Syntax highlight utility classes */
+.syntax-keyword { color: var(--syntax-keyword); }
+.syntax-string { color: var(--syntax-string); }
+.syntax-annotation { color: var(--syntax-annotation); }
+.syntax-number { color: var(--syntax-number); }
+.syntax-type { color: var(--syntax-type); }
+.syntax-method { color: var(--syntax-method); }
+.syntax-comment { color: var(--syntax-comment); }
+
+/* Logo marquee */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Blinking cursor for terminal accents */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Fade-in utility */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Monaco Editor overrides */
+.monaco-editor, .monaco-editor .margin {
+  background-color: #0D1117 !important;
+}
+.monaco-editor-background {
+  background-color: #0D1117 !important;
+}
