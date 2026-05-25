@@ -72,109 +72,144 @@ export default function Pricing() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080A10] text-[#E2E8F0] flex flex-col font-sans relative">
+    <div className="min-h-screen bg-black text-white flex flex-col font-mono relative selection:bg-zinc-800 selection:text-white">
       {/* Checkout Success Modal */}
       {successModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="w-full max-w-sm p-8 rounded-2xl glass-panel border border-[#1B2134] bg-slate-950/90 text-center flex flex-col items-center gap-4 relative animate-fade-in">
-            <div className="w-12 h-12 rounded-full bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-center text-[#00E676] text-xl animate-bounce">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-sm rounded-xl border border-[#7EE787] bg-[#0B0E14] text-center flex flex-col items-center gap-4 p-8 relative animate-fade-in font-mono shadow-[0_0_30px_rgba(126,231,135,0.06)]">
+            <div className="w-12 h-12 rounded-full bg-black border border-[#7EE787] flex items-center justify-center text-[#7EE787] text-xl animate-bounce">
               ✓
             </div>
             <h3 className="text-lg font-bold text-white mt-2">Subscription Confirmed!</h3>
-            <p className="text-xs text-[#94A3B8] leading-relaxed">
+            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
               Congratulations! Your upgrade to **{successModal}** has been processed successfully. Spawning full premium compiler features...
             </p>
-            <div className="text-[10px] text-slate-500 uppercase tracking-widest animate-pulse mt-4">
-              Redirecting back to dashboard...
+            <div className="text-[10px] text-[#7EE787] uppercase tracking-widest animate-pulse mt-4 font-mono">
+              // Redirecting to compiler...
             </div>
           </div>
         </div>
       )}
 
       {/* Navigation Header */}
-      <header className="border-b border-[#1B2134] bg-slate-950/40 select-none">
+      <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-sm border-b border-[#1A1F26] select-none font-mono">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-[#94A3B8] hover:text-white transition-colors">
+            <Link href="/dashboard" className="text-zinc-400 hover:text-white transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <span className="font-bold tracking-wider text-white">DevElo Pricing</span>
+            <span className="text-sm font-bold tracking-wider text-white">DevElo Pricing</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded border border-zinc-800 bg-zinc-950 flex items-center justify-center font-bold text-white text-base select-none">
+              &lt;/&gt;
+            </div>
+            <span className="text-xl font-bold tracking-wider text-white select-none hidden sm:inline">
+              Dev<span className="text-zinc-500">Elo</span>
+            </span>
           </div>
         </div>
       </header>
 
       {/* Main Pricing Sections */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-16 flex flex-col gap-12">
-        <div className="text-center select-none">
-          <div className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-[#00E5FF] tracking-widest border border-cyan-500/25 px-2.5 py-0.5 rounded-full bg-cyan-950/10 mb-4 animate-pulse">
-            <Sparkles className="w-3 h-3 fill-cyan-400" /> Unlock Pro Capabilities
+        <div className="text-center select-none font-sans">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#1A1F26] bg-[#0B0E14] text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-6 font-mono">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            Unlock Pro Capabilities
           </div>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight">Invest in Technical Success</h2>
-          <p className="text-sm text-[#94A3B8] max-w-md mx-auto mt-3">
+          <h2 className="text-3xl font-bold text-white font-mono">// Invest in Technical Success</h2>
+          <p className="text-sm text-zinc-400 max-w-lg mx-auto mt-4 font-sans leading-relaxed">
             Choose a plan tailored to your prep demands. Level up your ELO, explain complex systems, and pass visible/hidden test cases.
           </p>
         </div>
 
         {/* Pricing Cards Grid */}
-        <div className="grid md:grid-cols-3 gap-6 select-none">
-          {plans.map((plan, idx) => (
-            <div 
-              key={idx} 
-              className={`p-6 rounded-2xl border flex flex-col justify-between gap-8 transition-all relative ${plan.accentClass}`}
-            >
-              {plan.isPopular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#00E5FF] text-black text-[9px] font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(0,229,255,0.3)]">
-                  Most Popular
-                </div>
-              )}
+        <div className="grid md:grid-cols-3 gap-6 select-none font-mono">
+          {plans.map((plan, idx) => {
+            // Determine active/popular
+            const fileNames = ["free_plan.json", "pro_tier.ts", "premium_suite.rs"];
+            const lang = idx === 0 ? "JSON" : idx === 1 ? "TS" : "Rust";
+            const fileName = fileNames[idx];
+            const isPro = plan.isPopular;
 
-              <div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-semibold text-[#94A3B8]">{plan.name}</span>
-                  <div className="flex items-baseline mt-2">
-                    <span className="text-4xl font-extrabold text-white">{plan.price}</span>
-                    {plan.period && <span className="text-xs text-[#94A3B8] ml-1">{plan.period}</span>}
+            return (
+              <div 
+                key={idx} 
+                className={`rounded-xl border flex flex-col justify-between overflow-hidden transition-all bg-[#0B0E14] ${isPro ? "border-[#7EE787] shadow-[0_0_20px_rgba(126,231,135,0.06)]" : "border-[#1A1F26]"}`}
+              >
+                {/* Tab header */}
+                <div className={`flex items-center justify-between px-4 py-2 text-xs border-b ${isPro ? "bg-black/60 border-[#7EE787]" : "bg-black/40 border-[#1A1F26]"} text-zinc-500`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-full ${isPro ? "bg-[#7EE787]" : "bg-zinc-700"}`} />
+                    <span className={`text-[10px] ${isPro ? "text-[#7EE787] font-semibold" : "text-zinc-400"}`}>{fileName}</span>
                   </div>
-                  <p className="text-[11px] text-[#94A3B8] mt-2 leading-relaxed">{plan.desc}</p>
+                  <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-600">{lang}</span>
                 </div>
 
-                <div className="flex flex-col gap-3 mt-8">
-                  {plan.features.map((feat, fIdx) => (
-                    <div key={fIdx} className="flex items-start gap-2.5 text-xs text-[#94A3B8]">
-                      <Check className="w-3.5 h-3.5 text-[#00E676] shrink-0 mt-0.5" />
-                      <span>{feat}</span>
+                <div className="p-6 flex-1 flex flex-col justify-between gap-6">
+                  <div>
+                    {/* Simulated Code object */}
+                    <div className="text-xs leading-relaxed text-zinc-400 select-none">
+                      <div>
+                        <span className="text-[#FF7B72]">const</span> <span className="text-[#79C0FF]">{idx === 0 ? "freePlan" : idx === 1 ? "proTier" : "premiumSuite"}</span> = {"{"}
+                      </div>
+                      <div className="pl-4">
+                        <span className="text-[#79C0FF]">price</span>: <span className="text-[#7EE787]">&quot;{plan.price}&quot;</span>,
+                      </div>
+                      {plan.period && (
+                        <div className="pl-4">
+                          <span className="text-[#79C0FF]">period</span>: <span className="text-[#7EE787]">&quot;month&quot;</span>,
+                        </div>
+                      )}
+                      <div className="pl-4">
+                        <span className="text-[#79C0FF]">desc</span>: <span className="text-[#7EE787]">&quot;{plan.desc}&quot;</span>
+                      </div>
+                      <div>{"};"}</div>
                     </div>
-                  ))}
+
+                    <div className="w-full h-px bg-[#1A1F26] my-5" />
+
+                    {/* Features list styled as package exports or comments */}
+                    <div className="flex flex-col gap-3 font-sans text-xs">
+                      {plan.features.map((feat, fIdx) => (
+                        <div key={fIdx} className="flex items-start gap-2.5 text-zinc-300">
+                          <Check className={`w-4 h-4 shrink-0 mt-0.5 ${isPro ? "text-[#7EE787]" : "text-zinc-500"}`} />
+                          <span className="font-sans leading-relaxed">{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleSubscribe(plan.name)}
+                    disabled={plan.name === "Free Plan"}
+                    className={`w-full py-3 rounded-lg text-xs font-bold transition-all border font-mono tracking-wide ${isPro ? "bg-[#7EE787] text-black border-[#7EE787] hover:bg-[#6bd675] cursor-pointer" : plan.name === "Free Plan" ? "border-zinc-800 text-zinc-600 bg-zinc-950/40 cursor-default" : "border-[#1A1F26] text-white hover:border-zinc-700 bg-black/40 hover:bg-[#10141B]"}`}
+                  >
+                    {plan.buttonText}
+                  </button>
                 </div>
               </div>
-
-              <button
-                onClick={() => handleSubscribe(plan.name)}
-                disabled={plan.name === "Free Plan"}
-                className={`w-full py-2.5 rounded-lg text-xs font-extrabold transition-all border ${plan.isPopular ? "bg-[#00E5FF] text-black border-[#00E5FF] hover:bg-[#00c8e6]" : plan.name === "Free Plan" ? "border-[#1B2134] text-[#94A3B8] cursor-default bg-slate-900/10" : "border-[#1B2134] text-white hover:border-slate-600 bg-slate-950/20"}`}
-              >
-                {plan.buttonText}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Academic / CS Club tier */}
-        <div className="p-6 rounded-2xl border border-[#1B2134] bg-slate-900/5 flex flex-col sm:flex-row items-center justify-between gap-6 mt-6 select-none">
+        <div className="p-6 rounded-xl border border-[#1A1F26] bg-[#0B0E14] flex flex-col sm:flex-row items-center justify-between gap-6 mt-6 select-none font-mono">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-indigo-950/20 border border-indigo-500/20 flex items-center justify-center text-xl shrink-0 text-[#6366F1]">
+            <div className="w-10 h-10 rounded-lg bg-black border border-[#1A1F26] flex items-center justify-center text-lg shrink-0 text-[#79C0FF]">
               🎓
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm">CS Clubs, Universities, & Bootcamps</h4>
-              <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed max-w-xl">
-                Get premium licensing bulk credentials for CS classes or local clubs starting at only **$5 - $10 / seat / month**. Enable customized homework, tracks leaderboard, and host mock assessments.
+              <h4 className="font-bold text-white text-sm font-mono">// CS Clubs, Universities, & Bootcamps</h4>
+              <p className="text-xs text-zinc-400 mt-2 leading-relaxed max-w-xl font-sans">
+                Get premium licensing bulk credentials for CS classes or local clubs starting at only <strong className="text-white">$5 - $10 / seat / month</strong>. Enable customized homework, tracks leaderboard, and host mock assessments.
               </p>
             </div>
           </div>
           <a 
             href="mailto:licensing@develo.io?subject=CS Club Licensing Request" 
-            className="px-6 py-2.5 rounded-lg border border-indigo-500/20 text-[#6366F1] font-bold text-xs hover:bg-indigo-950/20 transition-all shrink-0"
+            className="px-6 py-3 rounded-lg border border-[#1A1F26] text-[#79C0FF] hover:border-zinc-700 bg-black/40 hover:bg-[#10141B] font-bold text-xs transition-all shrink-0 font-mono"
           >
             Request License
           </a>

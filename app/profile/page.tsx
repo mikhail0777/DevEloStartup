@@ -43,15 +43,23 @@ export default function UserProfile() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080A10] text-[#E2E8F0] flex flex-col font-sans">
+    <div className="min-h-screen bg-black text-white flex flex-col font-mono selection:bg-zinc-800 selection:text-white">
       {/* Navigation Header */}
-      <header className="border-b border-[#1B2134] bg-slate-950/40 select-none">
+      <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-sm border-b border-[#1A1F26] select-none font-mono">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-[#94A3B8] hover:text-white transition-colors">
+            <Link href="/dashboard" className="text-zinc-400 hover:text-white transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <span className="font-bold tracking-wider text-white">Profile & API Settings</span>
+            <span className="text-sm font-bold tracking-wider text-white">Profile & Settings</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded border border-zinc-800 bg-zinc-950 flex items-center justify-center font-bold text-white text-base select-none">
+              &lt;/&gt;
+            </div>
+            <span className="text-xl font-bold tracking-wider text-white select-none hidden sm:inline">
+              Dev<span className="text-zinc-500">Elo</span>
+            </span>
           </div>
         </div>
       </header>
@@ -61,76 +69,102 @@ export default function UserProfile() {
         {/* User Card Row */}
         <div className="grid md:grid-cols-3 gap-8 items-stretch select-none">
           {/* User Bio Stats */}
-          <div className="md:col-span-1 p-6 rounded-2xl glass-panel border border-[#1B2134] flex flex-col items-center justify-center text-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-[#1B2134] border border-cyan-500/30 flex items-center justify-center font-bold text-3xl text-[#00E5FF] shadow-[0_0_20px_rgba(0,229,255,0.1)]">
-              U
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-wide">Developer Coder</h2>
-              <span className="text-xs text-[#00E5FF] font-semibold uppercase tracking-wider block mt-1">{careerRank}</span>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-[#94A3B8] border-t border-[#1B2134] pt-4 w-full justify-center">
-              <div>
-                <span className="text-white font-bold block">{state.rating}</span>
-                <span>ELO Rating</span>
+          <div className="md:col-span-1 rounded-xl border border-[#1A1F26] bg-[#0B0E14] overflow-hidden flex flex-col justify-between">
+            {/* Tab header */}
+            <div className="flex items-center justify-between px-4 py-2 bg-black/40 border-b border-[#1A1F26] text-xs text-zinc-500 select-none">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-zinc-700" />
+                <span className="text-[10px] text-zinc-400">profile.json</span>
               </div>
-              <div className="w-px h-6 bg-[#1B2134]" />
+              <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-600">JSON</span>
+            </div>
+
+            <div className="p-6 flex-1 flex flex-col items-center justify-center text-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center font-mono font-bold text-3xl text-[#7EE787] shadow-[0_0_20px_rgba(126,231,135,0.04)]">
+                U
+              </div>
               <div>
-                <span className="text-white font-bold block">{state.streak} Days</span>
-                <span>Streak</span>
+                <h2 className="text-lg font-bold text-white tracking-wide font-mono">Developer Coder</h2>
+                <span className="text-xs text-[#79C0FF] font-semibold uppercase tracking-wider block mt-1 font-mono">{careerRank}</span>
+              </div>
+
+              <div className="w-full h-px bg-[#1A1F26] my-2" />
+
+              {/* JSON representation of stats */}
+              <div className="w-full text-left text-xs leading-relaxed text-zinc-400 select-none font-mono">
+                <div>{"{"}</div>
+                <div className="pl-4">
+                  <span className="text-[#79C0FF]">&quot;ratingElo&quot;</span>: <span className="text-[#79C0FF]">{state.rating}</span>,
+                </div>
+                <div className="pl-4">
+                  <span className="text-[#79C0FF]">&quot;streakDays&quot;</span>: <span className="text-[#79C0FF]">{state.streak}</span>
+                </div>
+                <div>{"}"}</div>
               </div>
             </div>
           </div>
 
           {/* Gemini API Key Drawer */}
-          <div className="md:col-span-2 p-6 rounded-2xl glass-panel border border-[#1B2134] bg-slate-900/10 flex flex-col justify-between gap-5 relative">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none" />
-            
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">AI ENGINE MODE</span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${state.geminiApiKey ? "text-[#00E676] bg-emerald-950/20 border-emerald-900/30" : "text-[#00E5FF] bg-cyan-950/20 border-cyan-500/20"}`}>
-                  {state.geminiApiKey ? "Gemini Active" : "Local Simulation"}
-                </span>
+          <div className="md:col-span-2 rounded-xl border border-[#1A1F26] bg-[#0B0E14] overflow-hidden flex flex-col justify-between">
+            {/* Tab header */}
+            <div className="flex items-center justify-between px-4 py-2 bg-black/40 border-b border-[#1A1F26] text-xs text-zinc-500 select-none">
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${state.geminiApiKey ? "bg-[#7EE787]" : "bg-[#79C0FF]"}`} />
+                <span className="text-[10px] text-zinc-400">engine_config.json</span>
               </div>
-              <h3 className="text-lg font-bold text-white mt-1">Direct Gemini LLM Connection</h3>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                By default, DevElo operates with advanced client-side template engines. Provide your custom **Gemini API Key** to experience fully dynamic LLM-generated coding problems, real-time context dialogs, and customized reviews.
-              </p>
+              <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-600">CONF</span>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <div className="flex gap-2">
-                <input 
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="Paste your Gemini API Key..."
-                  className="flex-1 bg-slate-950 border border-[#1B2134] rounded-lg px-4 py-2 text-xs text-white placeholder-slate-600 focus:border-[#00E5FF] outline-none font-mono"
-                />
-                {state.geminiApiKey && (
-                  <button 
-                    onClick={handleClearApiKey}
-                    className="p-2 border border-[#FF1744] hover:bg-rose-950/20 transition-all rounded-lg text-[#FF1744]"
-                    title="Clear Key"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <button 
-                  onClick={handleSaveApiKey}
-                  className="px-5 py-2 rounded-lg bg-[#00E5FF] text-black text-xs font-bold hover:bg-[#00c8e6] transition-all"
-                >
-                  Save API Key
-                </button>
-                {showSavedMsg && (
-                  <span className="text-xs text-[#00E676] flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5" /> Key saved persistently!
+            <div className="p-6 flex-1 flex flex-col justify-between gap-6">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-zinc-500 uppercase tracking-wider">// AI ENGINE CONFIG</span>
+                  <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-black ${state.geminiApiKey ? "text-[#7EE787] border-[#7EE787]" : "text-[#79C0FF] border-[#79C0FF]"}`}>
+                    {state.geminiApiKey ? "Gemini Active" : "Local Simulation"}
                   </span>
-                )}
+                </div>
+                <h3 className="text-base font-bold text-white font-mono">Direct Gemini LLM Connection</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed font-sans mt-1">
+                  By default, DevElo operates with local mock simulation models. Provide a custom **Gemini API Key** to connect directly to the Gemini API, enabling live, non-deterministic coding problems, dynamic mock discussions, and personalized evaluation reviews.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-4 font-mono">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 flex items-center bg-black border border-[#1A1F26] rounded-lg overflow-hidden focus-within:border-zinc-500 transition-colors">
+                    <span className="text-xs text-zinc-600 pl-4 select-none font-mono">key:</span>
+                    <input 
+                      type="password"
+                      value={apiKeyInput}
+                      onChange={(e) => setApiKeyInput(e.target.value)}
+                      placeholder="Paste your Gemini API Key..."
+                      className="flex-1 bg-transparent border-0 py-3 px-3 text-xs text-white placeholder-zinc-700 outline-none font-mono"
+                    />
+                  </div>
+                  {state.geminiApiKey && (
+                    <button 
+                      onClick={handleClearApiKey}
+                      className="p-3 border border-[#FF7B72]/30 hover:border-[#FF7B72] hover:bg-[#FF7B72]/5 transition-all rounded-lg text-[#FF7B72]"
+                      title="Clear Key"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <button 
+                    onClick={handleSaveApiKey}
+                    className="px-6 py-2.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-xs font-bold transition-all animate-pulse"
+                  >
+                    Save API Key
+                  </button>
+                  {showSavedMsg && (
+                    <span className="text-xs text-[#7EE787] flex items-center gap-1.5">
+                      <Check className="w-4 h-4" /> // config.saved = true;
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -138,34 +172,48 @@ export default function UserProfile() {
 
         {/* Badges Cabinet */}
         <div className="flex flex-col gap-4 select-none">
-          <h3 className="text-lg font-bold text-white">Badges Cabinet</h3>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {BADGES.map((badge, idx) => {
-              const isUnlocked = state.unlockedBadges.includes(badge.name);
-              return (
-                <div 
-                  key={idx} 
-                  className={`p-4 rounded-xl border flex gap-4 transition-all ${isUnlocked ? "bg-slate-900/10 border-cyan-500/20 hover:border-cyan-500/40" : "bg-slate-950/30 border-[#1B2134] opacity-50"}`}
-                >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0 ${isUnlocked ? "bg-cyan-950/20 border border-cyan-500/10 shadow-[0_0_10px_rgba(0,229,255,0.05)]" : "bg-slate-950 border border-slate-900 filter grayscale"}`}>
-                    {badge.icon}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
-                      {badge.name}
-                      {isUnlocked && <span className="text-[9px] uppercase font-bold text-[#00E676] tracking-wider bg-emerald-950/30 px-1 rounded border border-emerald-900/20">Unlocked</span>}
-                    </h4>
-                    <p className="text-[10px] text-[#94A3B8] mt-1 leading-relaxed">{badge.desc}</p>
-                  </div>
-                </div>
-              );
-            })}
+          <h3 className="text-lg font-bold text-white font-mono">// Badges Cabinet</h3>
+          
+          <div className="rounded-xl border border-[#1A1F26] bg-[#0B0E14] overflow-hidden flex flex-col">
+            {/* Tab header */}
+            <div className="flex items-center justify-between px-4 py-2 bg-black/40 border-b border-[#1A1F26] text-xs text-zinc-500 select-none">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-zinc-700" />
+                <span className="text-[10px] text-zinc-400">package.json</span>
+              </div>
+              <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-600 font-mono">JSON</span>
+            </div>
+
+            <div className="p-6">
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {BADGES.map((badge, idx) => {
+                  const isUnlocked = state.unlockedBadges.includes(badge.name);
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`p-4 rounded-lg border flex gap-4 transition-all ${isUnlocked ? "bg-black/40 border-[#7EE787]/20 hover:border-[#7EE787]/50" : "bg-black/10 border-[#1A1F26] opacity-40"}`}
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0 ${isUnlocked ? "bg-black border border-[#7EE787]/30 shadow-[0_0_10px_rgba(126,231,135,0.04)]" : "bg-zinc-950 border border-zinc-900 filter grayscale"}`}>
+                        {badge.icon}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white text-xs flex flex-wrap items-center gap-1.5 font-mono">
+                          &quot;{badge.name.toLowerCase().replace(/\s+/g, "-")}&quot;
+                          {isUnlocked && <span className="text-[8px] uppercase font-bold text-[#7EE787] tracking-wider bg-[#7EE787]/5 px-1.5 rounded border border-[#7EE787]/20 font-mono">unlocked</span>}
+                        </h4>
+                        <p className="text-[10px] text-zinc-400 mt-1.5 leading-relaxed font-sans">{badge.desc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Reset State Utility */}
-        <div className="border-t border-[#1B2134] pt-8 flex items-center justify-between text-xs text-[#94A3B8] select-none">
-          <span>Reset statistics, history logs, and ELO progress back to clean state.</span>
+        <div className="border-t border-[#1A1F26] pt-8 flex items-center justify-between text-xs text-zinc-500 select-none font-mono">
+          <span>// Reset statistics, history logs, and ELO progress back to clean state.</span>
           <button 
             onClick={() => {
               if (confirm("Are you sure you want to delete all match history, ELO rating updates, and streaks? This cannot be undone.")) {
@@ -173,9 +221,9 @@ export default function UserProfile() {
                 window.location.reload();
               }
             }}
-            className="px-4 py-2 border border-[#FF1744]/40 rounded-lg text-[#FF1744] hover:bg-rose-950/20 transition-all font-semibold"
+            className="px-4 py-2 border border-[#FF7B72]/30 rounded-lg text-[#FF7B72] hover:bg-[#FF7B72]/5 hover:border-[#FF7B72] transition-all font-semibold font-mono"
           >
-            Reset Database State
+            resetDatabaseState()
           </button>
         </div>
 
