@@ -187,8 +187,8 @@ function SetupChallenge() {
       <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 flex flex-col gap-8">
         {/* Info header */}
         <div className="flex flex-col gap-1 select-none">
-          <span className="text-xs text-secondary font-mono uppercase tracking-wider">// COMPILER INSTANCE SETUP</span>
-          <h1 className="text-2xl font-bold text-foreground font-sans">Configure Practice Parameters: {mode}</h1>
+          <span className="text-sm text-secondary font-mono uppercase tracking-wider">// COMPILER INSTANCE SETUP</span>
+          <h1 className="text-3xl font-bold text-foreground font-sans">Configure Practice Parameters: {mode}</h1>
         </div>
 
         <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -196,29 +196,29 @@ function SetupChallenge() {
           <div className="flex-1 flex flex-col gap-6 w-full">
             <div className="rounded-xl border border-border bg-surface overflow-hidden flex flex-col">
               {/* Tab header */}
-              <div className="flex items-center justify-between px-4 py-2.5 bg-inset/40 border-b border-border text-xs text-secondary select-none">
+              <div className="flex items-center justify-between px-4 py-3 bg-inset/40 border-b border-border text-sm text-secondary select-none">
                 <div className="flex items-center gap-1.5 font-mono">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#FF7B72]/85" />
                   <span className="w-2.5 h-2.5 rounded-full bg-[#D29922]/85" />
                   <span className="w-2.5 h-2.5 rounded-full bg-[#7EE787]/85" />
-                  <span className="ml-2 text-[10px] text-secondary font-mono">challenge_config.json</span>
+                  <span className="ml-2 text-xs text-secondary font-mono">challenge_config.json</span>
                 </div>
-                <span className="text-[9px] uppercase tracking-wider font-bold text-muted">JSON</span>
+                <span className="text-[11px] uppercase tracking-wider font-bold text-muted">JSON</span>
               </div>
 
               {/* Form elements */}
               <div className="p-6 flex flex-col gap-6">
                 {/* Choose Role */}
                 <div className="flex flex-col gap-3">
-                  <label className="text-xs font-bold text-secondary font-mono">
+                  <label className="text-sm font-bold text-secondary font-mono">
                     <span className="text-muted">//</span> 1. Select Target Job Role
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {roles.map((r, idx) => (
                       <button
                         key={idx}
                         onClick={() => setRole(r)}
-                        className={`p-3 rounded-lg border text-left text-xs font-semibold font-mono transition-all cursor-pointer ${
+                        className={`p-3.5 rounded-lg border text-left text-sm font-semibold font-mono transition-all cursor-pointer ${
                           role === r 
                             ? "border-blue bg-blue/5 text-foreground" 
                             : "border-border bg-inset text-secondary hover:border-border-muted hover:text-foreground"
@@ -232,15 +232,15 @@ function SetupChallenge() {
 
                 {/* Choose Level */}
                 <div className="flex flex-col gap-3 border-t border-border pt-6">
-                  <label className="text-xs font-bold text-secondary font-mono">
+                  <label className="text-sm font-bold text-secondary font-mono">
                     <span className="text-muted">//</span> 2. Experience Level (Rating Scale)
                   </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
                     {levels.map((l, idx) => (
                       <button
                         key={idx}
                         onClick={() => setLevel(l)}
-                        className={`p-3 rounded-lg border text-center text-xs font-semibold font-mono transition-all cursor-pointer ${
+                        className={`p-3.5 rounded-lg border text-center text-sm font-semibold font-mono transition-all cursor-pointer ${
                           level === l 
                             ? "border-green bg-green/5 text-foreground" 
                             : "border-border bg-inset text-secondary hover:border-border-muted hover:text-foreground"
@@ -253,15 +253,15 @@ function SetupChallenge() {
                 </div>
 
                 {/* Choose Stack & Language */}
-                <div className="grid sm:grid-cols-2 gap-4 border-t border-border pt-6">
+                <div className="grid sm:grid-cols-2 gap-4.5 border-t border-border pt-6">
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-secondary font-mono">
+                    <label className="text-sm font-bold text-secondary font-mono">
                       <span className="text-muted">//</span> 3. Code Language
                     </label>
                     <select
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
-                      className="bg-inset border border-border p-3 rounded-lg text-xs font-medium focus:border-border-active text-foreground outline-none w-full font-mono cursor-pointer"
+                      className="bg-inset border border-border p-3.5 rounded-lg text-sm font-medium focus:border-border-active text-foreground outline-none w-full font-mono cursor-pointer"
                     >
                       {languages.map((lang, idx) => (
                         <option key={idx} value={lang}>{lang}</option>
@@ -270,13 +270,13 @@ function SetupChallenge() {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-secondary font-mono">
+                    <label className="text-sm font-bold text-secondary font-mono">
                       <span className="text-muted">//</span> 4. Target Framework / Stack
                     </label>
                     <select
                       value={framework}
                       onChange={(e) => setFramework(e.target.value)}
-                      className="bg-inset border border-border p-3 rounded-lg text-xs font-medium focus:border-border-active text-foreground outline-none w-full font-mono cursor-pointer"
+                      className="bg-inset border border-border p-3.5 rounded-lg text-sm font-medium focus:border-border-active text-foreground outline-none w-full font-mono cursor-pointer"
                     >
                       {frameworks.map((fw, idx) => (
                         <option key={idx} value={fw}>{fw}</option>
@@ -292,40 +292,40 @@ function SetupChallenge() {
           <div className="w-full md:w-80 flex flex-col gap-6 shrink-0">
             <div className="rounded-xl border border-border bg-surface overflow-hidden flex flex-col">
               {/* Tab header */}
-              <div className="flex items-center justify-between px-4 py-2.5 bg-inset/40 border-b border-border text-xs text-secondary select-none">
+              <div className="flex items-center justify-between px-4 py-3 bg-inset/40 border-b border-border text-sm text-secondary select-none">
                 <div className="flex items-center gap-1.5 font-mono">
                   <span className="w-2.5 h-2.5 rounded-full bg-border-muted" />
-                  <span className="ml-2 text-[10px] text-secondary font-mono">rules.config</span>
+                  <span className="ml-2 text-xs text-secondary font-mono">rules.config</span>
                 </div>
-                <span className="text-[9px] uppercase tracking-wider font-bold text-muted font-mono">CONF</span>
+                <span className="text-[11px] uppercase tracking-wider font-bold text-muted font-mono">CONF</span>
               </div>
 
               <div className="p-6 flex flex-col gap-6">
                 {/* Rules Toggles */}
                 <div className="flex flex-col gap-4 font-mono">
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-sm">
                     <div>
                       <span className="font-semibold text-foreground block">AI Assistant</span>
-                      <span className="text-[10px] text-secondary font-sans">Allow Copilot helpers</span>
+                      <span className="text-xs text-secondary font-sans">Allow Copilot helpers</span>
                     </div>
                     <input
                       type="checkbox"
                       checked={aiAssistant}
                       onChange={(e) => setAiAssistant(e.target.checked)}
-                      className="w-4 h-4 accent-blue rounded bg-inset border-border cursor-pointer"
+                      className="w-4.5 h-4.5 accent-blue rounded bg-inset border-border cursor-pointer"
                     />
                   </div>
 
-                  <div className="flex items-center justify-between text-xs border-t border-border pt-4">
+                  <div className="flex items-center justify-between text-sm border-t border-border pt-4">
                     <div>
                       <span className="font-semibold text-foreground block">Voice Mode</span>
-                      <span className="text-[10px] text-secondary font-sans">TTS speech interrupts</span>
+                      <span className="text-xs text-secondary font-sans">TTS speech interrupts</span>
                     </div>
                     <input
                       type="checkbox"
                       checked={voiceInterviewer}
                       onChange={(e) => setVoiceInterviewer(e.target.checked)}
-                      className="w-4 h-4 accent-blue rounded bg-inset border-border cursor-pointer"
+                      className="w-4.5 h-4.5 accent-blue rounded bg-inset border-border cursor-pointer"
                     />
                   </div>
                 </div>
@@ -333,9 +333,9 @@ function SetupChallenge() {
                 {/* Launch Button */}
                 <button
                   onClick={handleStart}
-                  className="w-full py-3.5 rounded-lg bg-foreground text-background font-extrabold text-xs hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-4 rounded-lg bg-foreground text-background font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4" /> Compile Challenge
+                  <Sparkles className="w-4.5 h-4.5" /> Compile Challenge
                 </button>
               </div>
             </div>

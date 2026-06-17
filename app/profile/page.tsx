@@ -341,10 +341,10 @@ export default function UserProfile() {
 
           {/* Reset State Utility */}
           <div className="border-t border-border pt-8 flex items-center justify-between text-xs text-secondary select-none font-mono">
-            <span>// Reset statistics, history logs, and ELO progress back to clean state.</span>
+            <span>// Reset statistics and history logs back to clean state.</span>
             <button 
               onClick={() => {
-                if (confirm("Are you sure you want to delete all match history, ELO rating updates, and streaks? This cannot be undone.")) {
+                if (confirm("Are you sure you want to delete all match history and streaks? This cannot be undone.")) {
                   resetState();
                   window.location.reload();
                 }

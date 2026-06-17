@@ -28,6 +28,255 @@ export default function WorkspaceIDEPage() {
   );
 }
 
+const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) => {
+  const codeTrimmed = code.trim();
+  const starterTrimmed = challenge.starterCode.trim();
+
+  // 1. Unmodified check
+  if (codeTrimmed === starterTrimmed || codeTrimmed.length === 0) {
+    return { passed: false, output: "AssertionError: Starter code unmodified. Please implement the solution before running." };
+  }
+
+  // Check for placeholder strings
+  if (code.includes("TODO: Return") || code.includes("TODO: Implement") || code.includes("TODO: Write") || (lang === "Python" && code.includes("pass"))) {
+    const lines = code.split("\n");
+    const hasUnchangedTodo = lines.some(l => (l.includes("TODO") || l.includes("pass")) && !l.includes("completed") && !l.includes("done"));
+    if (hasUnchangedTodo) {
+      return { passed: false, output: "AssertionError: Unimplemented placeholder detected. Please replace TODO / pass statements with active logic." };
+    }
+  }
+
+  // 2. Strict language evaluation
+  const codeLower = code.toLowerCase();
+
+  // 3. For JS/TS, try executing algorithms that are purely functional
+  const isPureAlg = challenge.category === "Algorithms" && 
+                     !["reverse-linked-list", "invert-binary-tree", "validate-bst", "number-of-islands", "lowest-common-ancestor", "binary-tree-level-order", "linked-list-cycle", "merge-two-sorted-lists", "merge-k-sorted-lists", "serialize-deserialize-tree"].includes(challenge.id);
+  
+  if ((lang === "JavaScript" || lang === "TypeScript") && isPureAlg) {
+    try {
+      // Clean up typescript definitions
+      let cleanCode = code;
+      if (lang === "TypeScript") {
+        cleanCode = code
+          .replace(/:\s*(string|number|boolean|any|void|number\[\]|string\[\]|Record<[^>]+>|Map<[^>]+>|Set<[^>]+>)(\[\])?/g, "")
+          .replace(/\s+as\s+\w+/g, "")
+          .replace(/export\s+/g, "")
+          .replace(/import\s+[^;]+;/g, "");
+      }
+      
+      // Determine what call expression to run
+      let callExpr = tc.input.trim();
+      // If the input doesn't start with the function name, wrap it
+      if (!callExpr.startsWith(challenge.funcName)) {
+        callExpr = `${challenge.funcName}(${callExpr})`;
+      }
+      
+      // Execute
+      const runner = new Function(`
+        ${cleanCode}
+        return ${callExpr};
+      `);
+      
+      const result = runner();
+      
+      // Normalize and compare actual vs expected
+      const expectedNormalized = tc.expected.trim().replace(/\s+/g, "");
+      let actualNormalized = "";
+      if (typeof result === "object" && result !== null) {
+        actualNormalized = JSON.stringify(result).replace(/\s+/g, "");
+      } else {
+        actualNormalized = String(result).trim().replace(/\s+/g, "");
+      }
+      
+      // Also check if result is string but expected has single/double quotes around it
+      let expClean = expectedNormalized;
+      if ((expClean.startsWith("'") && expClean.endsWith("'")) || (expClean.startsWith("\"") && expClean.endsWith("\""))) {
+        expClean = expClean.slice(1, -1);
+      }
+      let actClean = actualNormalized;
+      if ((actClean.startsWith("'") && actClean.endsWith("'")) || (actClean.startsWith("\"") && actClean.endsWith("\""))) {
+        actClean = actClean.slice(1, -1);
+      }
+      
+      if (actClean === expClean || actualNormalized === expectedNormalized) {
+        return { passed: true, output: `Verification passed. Output: ${JSON.stringify(result)}` };
+      } else {
+        return { 
+          passed: false, 
+          output: `AssertionError: Expected '${tc.expected}', got '${result !== undefined ? JSON.stringify(result) : "undefined"}'` 
+        };
+      }
+    } catch (err: any) {
+      return { passed: false, output: `TypeError/SyntaxError: ${err.message || String(err)}` };
+    }
+  }
+
+  // 4. Strict Heuristics checking for all other templates/languages
+  // We can write custom rules based on the challenge ID to make sure they solved it!
+  
+  // Rule A: Hardcoding check
+  // If their code is very short (e.g. less than starter code + 20 chars) and does not contain logic expressions
+  if (code.length < challenge.starterCode.length + 15) {
+    return { passed: false, output: `AssertionError: Solution is too short. Please write the complete algorithm.` };
+  }
+
+  // Rule B: specific challenge verification checks
+  switch (challenge.id) {
+    // Debugging off-by-one binary search
+    case "fix-binary-search":
+      if (!code.includes("<=") && !code.includes("l <= r") && !code.includes("low <= high")) {
+        return { passed: false, output: "AssertionError: Off-by-one check failed. Make sure the while loop condition checks boundary indexes (e.g., low <= high)." };
+      }
+      break;
+
+    // Debugging array sort coercion
+    case "fix-type-coercion":
+      if (!code.includes("a - b") && !code.includes("a-b")) {
+        return { passed: false, output: "AssertionError: Sort comparison check failed. JavaScript sorts values as strings alphabetically by default. You must supply a numeric comparison lambda." };
+      }
+      break;
+
+    // Debugging recursive traversal stack overflow
+    case "fix-infinite-recursion":
+      if (!code.includes("null") && !code.includes("!node") && !code.includes("== null")) {
+        return { passed: false, output: "AssertionError: Base case missing. Recursive traversals must include boundary check statements to exit on null child pointers." };
+      }
+      break;
+
+    // Debugging key null JSON checks
+    case "fix-null-pointer-json":
+      if (!code.includes("?") && !code.includes("&&") && !code.includes("address")) {
+        return { passed: false, output: "AssertionError: Null pointer safeguard missing. Validate address object existence before accessing nested keys." };
+      }
+      break;
+
+    // stripe-webhook verification
+    case "stripe-webhook":
+      if (!codeLower.includes("hmac") || !codeLower.includes("sha256") || !codeLower.includes("300")) {
+        return { passed: false, output: "AssertionError: Replay validation error. Missing timestamp validation window check (300 seconds limit) or signature verification algorithm." };
+      }
+      break;
+
+    // redis-rate-limiter
+    case "redis-rate-limiter":
+      if (!codeLower.includes("zcard") || !codeLower.includes("zadd") || !codeLower.includes("zrem")) {
+        return { passed: false, output: "AssertionError: Missing Redis commands. Sliding window must query ZCARD, add ZADD, and clean ZREMRANGEBYSCORE." };
+      }
+      break;
+
+    // circuit-breaker
+    case "circuit-breaker":
+      if (!codeLower.includes("half-open") || !codeLower.includes("open") || !codeLower.includes("closed")) {
+        return { passed: false, output: "AssertionError: Invalid states. State machine must maintain CLOSED, OPEN, and HALF-OPEN transition parameters." };
+      }
+      break;
+
+    // fetch-retry-backoff
+    case "fetch-retry-backoff":
+      if (!codeLower.includes("retry") || !codeLower.includes("pow") || !codeLower.includes("math.random")) {
+        return { passed: false, output: "AssertionError: Backoff stampede risk. Retrying requires exponential backoff delay powered by randomized jitter offsets." };
+      }
+      break;
+
+    // token-bucket
+    case "token-bucket":
+      if (!codeLower.includes("refill") || !codeLower.includes("capacity")) {
+        return { passed: false, output: "AssertionError: Throttle leak. Compute token replenish rates using timestamps before verifying bucket state limits." };
+      }
+      break;
+
+    // react-counter
+    case "react-counter":
+      if (!code.includes("useState") && !code.includes("state")) {
+        return { passed: false, output: "AssertionError: State manager missing. Render counters using dynamic state update hooks." };
+      }
+      break;
+
+    // react-theme-toggle
+    case "react-theme-toggle":
+      if (!code.includes("localStorage") || !code.includes("className") || !code.includes("document")) {
+        return { passed: false, output: "AssertionError: Target toggle missing. Persist theme classes inside localStorage hooks." };
+      }
+      break;
+
+    // jwt-jwks-verifier
+    case "jwt-jwks-verifier":
+      if (!codeLower.includes("kid") || !codeLower.includes("exp") || !codeLower.includes("iss")) {
+        return { passed: false, output: "AssertionError: Claims validation missing. JWT tokens require key identifier and issuer verify checks." };
+      }
+      break;
+
+    // validate-bst
+    case "validate-bst":
+      if (!codeLower.includes("left") || !codeLower.includes("right") || (!codeLower.includes("helper") && !codeLower.includes("validate"))) {
+        return { passed: false, output: "AssertionError: Tree traversal error. Validate BST structures recursively checking node key boundaries." };
+      }
+      break;
+
+    // number-of-islands
+    case "number-of-islands":
+      if (!codeLower.includes("dfs") && !codeLower.includes("bfs") && !codeLower.includes("grid")) {
+        return { passed: false, output: "AssertionError: Graph lookup failed. Run graph searches (DFS/BFS) on land elements flagging visited nodes." };
+      }
+      break;
+
+    // reverse-linked-list
+    case "reverse-linked-list":
+    case "reverse-list":
+      if (!codeLower.includes("next") || !codeLower.includes("prev")) {
+        return { passed: false, output: "AssertionError: Pointer leak. Traverse the linked list updating links to preceding nodes." };
+      }
+      break;
+
+    // invert-binary-tree
+    case "invert-binary-tree":
+      if (!codeLower.includes("left") || !codeLower.includes("right") || !codeLower.includes("invert")) {
+        return { passed: false, output: "AssertionError: Inversion failed. Swap left and right child pointers recursively." };
+      }
+      break;
+
+    // course-schedule
+    case "course-schedule":
+      if (!codeLower.includes("cycle") && !codeLower.includes("dfs") && !codeLower.includes("visited")) {
+        return { passed: false, output: "AssertionError: Cycle check missing. Check for circular dependencies in the course prereq graph." };
+      }
+      break;
+
+    // consistent-hashing-ring
+    case "consistent-hashing-ring":
+      if (!codeLower.includes("hash") || !codeLower.includes("ring") || !codeLower.includes("replica")) {
+        return { passed: false, output: "AssertionError: Ring lookup error. Map node names and client keys to a consistent hashing circle." };
+      }
+      break;
+
+    // SQL queries
+    case "find-duplicate-emails":
+    case "delete-duplicate-emails":
+    case "employees-earning-more":
+    case "department-highest-salary":
+    case "rank-scores":
+    case "consecutive-numbers":
+    case "trips-and-users":
+    case "nth-highest-salary":
+    case "customers-who-never-order":
+      if (!codeLower.includes("select") || !codeLower.includes("from")) {
+        return { passed: false, output: "AssertionError: Invalid SQL. Query must contain standard SELECT and FROM statements." };
+      }
+      break;
+
+    default:
+      // Generic code checks for algorithms/debugging/etc.
+      if (challenge.category === "Algorithms") {
+        if (!codeLower.includes("return") && !codeLower.includes("def") && !codeLower.includes("class")) {
+          return { passed: false, output: "AssertionError: Return output statement missing. Implement the logic and return the result." };
+        }
+      }
+  }
+
+  return { passed: true, output: "Verification passed successfully." };
+};
+
 function WorkspaceIDE() {
   const router = useRouter();
   const { state, addMatch, toggleTheme } = useStore();
@@ -47,6 +296,321 @@ function WorkspaceIDE() {
   const [aiAssistantActive, setAiAssistantActive] = useState(true);
   const [voiceActive, setVoiceActive] = useState(false);
   const [copilotUsageCount, setCopilotUsageCount] = useState(0);
+
+  // Modern IDE states (Phase 1)
+  const [fontSize, setFontSize] = useState(15);
+  const [consoleTab, setConsoleTab] = useState<"terminal" | "problems">("terminal");
+  const [diagnostics, setDiagnostics] = useState<MistakeLog[]>([]);
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
+  const decorationsRef = useRef<string[]>([]);
+
+  const handleEditorDidMount = (editor: any, monaco: any) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    // Register Right-Click Context Menu Actions
+    editor.addAction({
+      id: "explain-selection",
+      label: "Develiq AI: Explain Code Selection",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE],
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 1.5,
+      run: (ed: any) => {
+        const selectionText = ed.getModel().getValueInRange(ed.getSelection());
+        if (selectionText && selectionText.trim()) {
+          setSelectedAgent("Interviewer");
+          setInputMessage(`Explain this code block:\n\n\`\`\`${challenge?.language || "javascript"}\n${selectionText}\n\`\`\``);
+          setActiveRightTab("chat");
+        }
+      }
+    });
+
+    editor.addAction({
+      id: "fix-selection",
+      label: "Develiq AI: Fix Bugs in Selection",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 2.5,
+      run: (ed: any) => {
+        const selectionText = ed.getModel().getValueInRange(ed.getSelection());
+        if (selectionText && selectionText.trim()) {
+          setSelectedAgent("Bug Hunter");
+          setInputMessage(`Can you locate any bugs or complexity blunders in this selection and suggest a fix?\n\n\`\`\`${challenge?.language || "javascript"}\n${selectionText}\n\`\`\``);
+          setActiveRightTab("chat");
+        }
+      }
+    });
+  };
+
+  // Autocomplete provider
+  useEffect(() => {
+    let completionDisposal: any = null;
+
+    if (monacoRef.current && challenge) {
+      const monaco = monacoRef.current;
+      const lang = challenge.language.toLowerCase() === "c++" ? "cpp" : challenge.language.toLowerCase();
+
+      completionDisposal = monaco.languages.registerCompletionItemProvider(lang, {
+        triggerCharacters: ["/", "a", "s", "v", "r", "m", "c"],
+        provideCompletionItems: (model: any, position: any) => {
+          const word = model.getWordUntilPosition(position);
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn
+          };
+
+          const suggestions: any[] = [];
+
+          if (challenge.id === "stripe-webhook") {
+            suggestions.push({
+              label: "verifyWebhookSignature",
+              kind: monaco.languages.CompletionItemKind.Method,
+              insertText: [
+                "function verifyWebhook(payload, header, secret) {",
+                "  if (!payload || !header || !secret) return false;",
+                "  const parts = header.split(',');",
+                "  let timestamp = '';",
+                "  let signature = '';",
+                "  for (const part of parts) {",
+                "    if (part.startsWith('t=')) timestamp = part.split('=')[1];",
+                "    if (part.startsWith('v1=')) signature = part.split('=')[1];",
+                "  }",
+                "  if (!timestamp || !signature) return false;",
+                "  ",
+                "  // Replay prevention guard (300s)",
+                "  const nowSeconds = Math.floor(Date.now() / 1000);",
+                "  const timestampSec = parseInt(timestamp, 10);",
+                "  if (Math.abs(nowSeconds - timestampSec) > 300) return false;",
+                "  ",
+                "  const signedPayload = timestamp + '.' + payload;",
+                "  const expectedSignature = crypto",
+                "    .createHmac('sha256', secret)",
+                "    .update(signedPayload)",
+                "    .digest('hex');",
+                "    ",
+                "  return signature === expectedSignature;",
+                "}"
+              ].join("\n"),
+              documentation: "Verify Stripe Webhook HMAC signature with replay protection.",
+              range: range
+            });
+          }
+
+          if (challenge.id === "redis-rate-limiter") {
+            suggestions.push({
+              label: "isAllowedSlidingWindow",
+              kind: monaco.languages.CompletionItemKind.Method,
+              insertText: [
+                "async function isAllowed(userId, limit, windowSizeSeconds, redisClient) {",
+                "  const now = Date.now();",
+                "  const clearBefore = now - (windowSizeSeconds * 1000);",
+                "  ",
+                "  const pipeline = redisClient.multi();",
+                "  pipeline.zremrangebyscore(userId, 0, clearBefore);",
+                "  pipeline.zcard(userId);",
+                "  pipeline.zadd(userId, now, now.toString());",
+                "  ",
+                "  const results = await pipeline.exec();",
+                "  const activeCount = results[1][1];",
+                "  if (activeCount >= limit) {",
+                "    await redisClient.zrem(userId, now.toString());",
+                "    return false;",
+                "  }",
+                "  return true;",
+                "}"
+              ].join("\n"),
+              documentation: "Implement atomic Redis multi sliding-window rate limit checks.",
+              range: range
+            });
+          }
+
+          if (challenge.id === "jwt-jwks-verifier") {
+            suggestions.push({
+              label: "verifyJwtJwksSnippet",
+              kind: monaco.languages.CompletionItemKind.Method,
+              insertText: [
+                "function verifyJwtJwks(token, jwksUri, allowedIssuer, allowedAudience) {",
+                "  const parts = token.split('.');",
+                "  if (parts.length !== 3) return false;",
+                "  const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());",
+                "  const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());",
+                "  if (payload.iss !== allowedIssuer || payload.aud !== allowedAudience) return false;",
+                "  const nowSeconds = Math.floor(Date.now() / 1000);",
+                "  if (payload.exp <= nowSeconds) return false;",
+                "  if (!header.kid) return false;",
+                "  return true;",
+                "}"
+              ].join("\n"),
+              documentation: "Verify JWT payload claims and extract key identifier.",
+              range: range
+            });
+          }
+
+          if (challenge.id === "fetch-retry-backoff") {
+            suggestions.push({
+              label: "fetchWithRetrySnippet",
+              kind: monaco.languages.CompletionItemKind.Method,
+              insertText: [
+                "async function fetchWithRetry(url, options, maxAttempts, delayMs) {",
+                "  let attempt = 0;",
+                "  const execute = async () => {",
+                "    try {",
+                "      const res = await fetch(url, options);",
+                "      if (res.status === 429 || res.status >= 500) {",
+                "        throw new Error('Server Error ' + res.status);",
+                "      }",
+                "      return res;",
+                "    } catch (err) {",
+                "      attempt++;",
+                "      if (attempt >= maxAttempts) throw err;",
+                "      const backoff = delayMs * Math.pow(2, attempt);",
+                "      const jitter = Math.random() * backoff * 0.5;",
+                "      await new Promise(resolve => setTimeout(resolve, backoff + jitter));",
+                "      return execute();",
+                "    }",
+                "  };",
+                "  return execute();",
+                "}"
+              ].join("\n"),
+              documentation: "Perform fetch wrapper query with exponential backoff and randomized jitter.",
+              range: range
+            });
+          }
+
+          if (challenge.id === "circuit-breaker") {
+            suggestions.push({
+              label: "CircuitBreakerSnippet",
+              kind: monaco.languages.CompletionItemKind.Class,
+              insertText: [
+                "class CircuitBreaker {",
+                "  constructor(action, failureThreshold, cooldownPeriod) {",
+                "    this.action = action;",
+                "    this.failureThreshold = failureThreshold;",
+                "    this.cooldownPeriod = cooldownPeriod;",
+                "    this.state = 'CLOSED';",
+                "    this.failures = 0;",
+                "    this.lastStateChange = Date.now();",
+                "  }",
+                "  async execute(...args) {",
+                "    const now = Date.now();",
+                "    if (this.state === 'OPEN') {",
+                "      if (now - this.lastStateChange > this.cooldownPeriod * 1000) {",
+                "        this.state = 'HALF-OPEN';",
+                "        this.lastStateChange = now;",
+                "      } else {",
+                "        throw new Error('Circuit Open');",
+                "      }",
+                "    }",
+                "    try {",
+                "      const result = await this.action(...args);",
+                "      if (this.state === 'HALF-OPEN') {",
+                "        this.state = 'CLOSED';",
+                "        this.failures = 0;",
+                "        this.lastStateChange = now;",
+                "      }",
+                "      return result;",
+                "    } catch (err) {",
+                "      this.failures++;",
+                "      if (this.state === 'HALF-OPEN' || this.failures >= this.failureThreshold) {",
+                "        this.state = 'OPEN';",
+                "        this.lastStateChange = now;",
+                "      }",
+                "      throw err;",
+                "    }",
+                "  }",
+                "}"
+              ].join("\n"),
+              documentation: "Tri-state Circuit Breaker (CLOSED -> OPEN -> HALF-OPEN) logic.",
+              range: range
+            });
+          }
+
+          suggestions.push({
+            label: "defensiveGuardCheck",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "if (!records || records.length === 0) {",
+              "  return [];",
+              "}"
+            ].join("\n"),
+            documentation: "Standard safety validator guard checks.",
+            range: range
+          });
+
+          suggestions.push({
+            label: "fastLookupHashMap",
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: [
+              "const lookup = new Map();",
+              "for (const item of items) {",
+              "  lookup.set(item.id, item);",
+              "}"
+            ].join("\n"),
+            documentation: "Fast key-value map cache lookup dictionary.",
+            range: range
+          });
+
+          return { suggestions };
+        }
+      });
+    }
+
+    return () => {
+      if (completionDisposal) {
+        completionDisposal.dispose();
+      }
+    };
+  }, [monacoRef.current, challenge]);
+
+  // Chess-style annotations manager (Monaco Model decorations)
+  useEffect(() => {
+    if (editorRef.current && monacoRef.current) {
+      const monaco = monacoRef.current;
+      const editor = editorRef.current;
+
+      const newDecorations = diagnostics.map((d) => {
+        const isStrong = d.type === "strong-move";
+        const isExcellent = d.type === "excellent-tradeoff";
+        const line = d.line || 1;
+
+        let glyphClass = "monaco-mistake-glyph";
+        let inlineClass = state.theme === "light" 
+          ? "bg-red-50 text-red-700 font-semibold" 
+          : "bg-red-950/20 text-rose-400";
+
+        if (isStrong) {
+          glyphClass = "monaco-strong-move-glyph";
+          inlineClass = state.theme === "light" 
+            ? "bg-blue-50 text-blue-800 font-semibold" 
+            : "bg-indigo-950/20 text-indigo-400";
+        } else if (isExcellent) {
+          glyphClass = "monaco-excellent-move-glyph";
+          inlineClass = state.theme === "light" 
+            ? "bg-green-50 text-green-800 font-semibold" 
+            : "bg-emerald-950/20 text-emerald-400";
+        }
+
+        return {
+          range: new monaco.Range(line, 1, line, 1),
+          options: {
+            isWholeLine: true,
+            glyphMarginClassName: glyphClass,
+            className: inlineClass,
+            glyphMarginHoverMessage: { value: `**${d.title}**\n\n${d.description}` },
+            hoverMessage: { value: `**${d.title}**\n\n${d.description}` }
+          }
+        };
+      });
+
+      decorationsRef.current = editor.deltaDecorations(
+        decorationsRef.current,
+        newDecorations
+      );
+    }
+  }, [diagnostics, state.theme]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const codeRef = useRef("");
@@ -68,6 +632,10 @@ function WorkspaceIDE() {
         setChallenge(parsed);
         setCode(parsed.starterCode);
         codeRef.current = parsed.starterCode;
+
+        // Run initial diagnostics scan
+        const initialLogs = scanUserCode(parsed.starterCode, parsed.language);
+        setDiagnostics(initialLogs);
 
         // Initialize test results grid
         setTestResults(parsed.testCases.map(tc => ({
@@ -126,6 +694,7 @@ function WorkspaceIDE() {
 
     // Local code heuristics scanner (O(N^2) loops, keys lookup, etc.)
     const codeLogs = scanUserCode(val, challenge?.language || "JavaScript");
+    setDiagnostics(codeLogs);
     
     // Check if line-count triggers are matched (e.g. prompt Interviewer when they write certain lines of code)
     const lineCount = val.split("\n").length;
@@ -151,6 +720,28 @@ function WorkspaceIDE() {
         }
       }
     });
+  };
+
+  // Format code in editor using Monaco formatting action or custom fallback
+  const handleFormatCode = () => {
+    if (editorRef.current) {
+      // Trigger Monaco built-in format action
+      editorRef.current.trigger("editor-format", "editor.action.formatDocument");
+      // Small timeout to let Monaco update, then read back and scan
+      setTimeout(() => {
+        const val = editorRef.current.getValue() || "";
+        setCode(val);
+        codeRef.current = val;
+        const codeLogs = scanUserCode(val, challenge?.language || "JavaScript");
+        setDiagnostics(codeLogs);
+      }, 150);
+    } else {
+      const formatted = formatCodeFallback(code, challenge?.language || "JavaScript");
+      setCode(formatted);
+      codeRef.current = formatted;
+      const codeLogs = scanUserCode(formatted, challenge?.language || "JavaScript");
+      setDiagnostics(codeLogs);
+    }
   };
 
   // Send Message to Agent
@@ -268,39 +859,22 @@ function WorkspaceIDE() {
     }, 1200);
   };
 
-  // Submit Challenge & ELO adjustments
+  // Submit Challenge
   const handleSubmit = () => {
     if (!challenge) return;
 
     // Scan the user's code to determine the Chess mistake logs
     const mistakeLogs = scanUserCode(code, challenge.language);
-
-    // Calculate dynamic ELO changes using proportional chess formulas
-    // Easy problems give less ELO if user's rating is high
-    const challengeDifficulty = challenge.difficultyRating;
-    const userRating = state.rating;
-    
-    const expectedScore = 1 / (1 + Math.pow(10, (challengeDifficulty - userRating) / 400));
     
     // Determine actual score based on compiler checks and mistakes
     const hasGuards = code.toLowerCase().includes("if");
     const failedTests = !hasGuards ? 2 : 0;
     const passedCount = challenge.testCases.length - failedTests;
     const isSuccess = passedCount === challenge.testCases.length;
-    
-    const baseScore = isSuccess ? 90 : 60;
-    const penaltyCount = mistakeLogs.filter(x => x.type !== "strong-move" && x.type !== "excellent-tradeoff").length;
-    const actualScorePercentage = Math.max(10, Math.min(100, baseScore - (penaltyCount * 8) - (copilotUsageCount * 5)));
-    
-    const actualScore = actualScorePercentage / 100;
-    const ELO_K = 40; // Chess K-factor
-    const eloChange = Math.round(ELO_K * (actualScore - expectedScore));
-    
-    const ratingAfter = Math.max(100, userRating + eloChange);
 
     // Dynamic coach text
     const summaryFeedback = isSuccess 
-      ? `Phenomenal performance! You handled index validations beautifully. Earned +${eloChange} ELO rating gains.`
+      ? `Phenomenal performance! You handled validations beautifully.`
       : `Decent work, but your solution missed empty input checks. Review Clean-Code Carl's annotations to improve.`;
 
     const matchHistoryItem = {
@@ -312,14 +886,14 @@ function WorkspaceIDE() {
       language: challenge.language,
       framework: challenge.framework,
       date: new Date().toISOString().split("T")[0],
-      overallScore: actualScorePercentage,
-      eloChange: eloChange,
+      overallScore: isSuccess ? 100 : 50,
+      eloChange: 0,
       passedCount: passedCount,
       totalCount: challenge.testCases.length,
       mistakes: mistakeLogs,
       feedback: summaryFeedback,
-      ratingBefore: userRating,
-      ratingAfter: ratingAfter
+      ratingBefore: state.rating,
+      ratingAfter: state.rating
     };
 
     // Commit to persistent localStorage
@@ -343,35 +917,60 @@ function WorkspaceIDE() {
   return (
     <div className="h-screen bg-background text-foreground flex flex-col font-sans overflow-hidden selection:bg-zinc-800 selection:text-white">
       {/* IDE Top Status Bar */}
-      <header className="h-12 border-b border-border bg-surface px-6 flex items-center justify-between select-none">
+      <header className="h-14 border-b border-border bg-surface px-6 flex items-center justify-between select-none">
         <div className="flex items-center gap-3">
-          <LinkNext href="/dashboard" className="text-secondary hover:text-foreground transition-colors text-sm">
+          <LinkNext href="/dashboard" className="text-secondary hover:text-foreground transition-colors text-base font-semibold">
             ← Dashboard
           </LinkNext>
           <span className="text-border">|</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+          <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
             {challenge.mode} • {challenge.level}
           </span>
-          <span className="text-xs text-secondary font-mono">({challenge.language} / {challenge.framework})</span>
+          <span className="text-sm text-secondary font-mono">({challenge.language} / {challenge.framework})</span>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-inset border border-border text-xs font-mono text-secondary">
-            <Clock className="w-3.5 h-3.5 text-secondary" />
+          {/* Zoom controls to increase/decrease font size */}
+          <div className="flex items-center gap-1.5 border border-border rounded-lg bg-inset px-2.5 py-1 select-none">
+            <button 
+              onClick={() => setFontSize(Math.max(12, fontSize - 1))}
+              className="text-secondary hover:text-foreground text-sm font-bold px-1.5 cursor-pointer transition-colors"
+              title="Decrease Font Size"
+            >
+              A-
+            </button>
+            <span className="text-secondary text-xs font-mono border-x border-border px-2 select-none">{fontSize}px</span>
+            <button 
+              onClick={() => setFontSize(Math.min(22, fontSize + 1))}
+              className="text-secondary hover:text-foreground text-sm font-bold px-1.5 cursor-pointer transition-colors"
+              title="Increase Font Size"
+            >
+              A+
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-inset border border-border text-sm font-mono text-foreground font-bold shadow-sm select-none">
+            <Clock className="w-4 h-4 text-foreground" />
             {formatTime(timer)}
           </div>
           <button 
-            onClick={handleSubmit}
-            className="h-8 px-4 rounded-lg bg-foreground text-background font-bold text-xs hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+            onClick={handleRunCode}
+            className="h-11 px-6 rounded-xl border border-emerald-500/80 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 font-extrabold text-sm transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
-            Submit Solution <ArrowRight className="w-3.5 h-3.5" />
+            <Play className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-current" /> Run Code
+          </button>
+          <button 
+            onClick={handleSubmit}
+            className="h-11 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition-all flex items-center gap-2 shadow-md cursor-pointer"
+          >
+            Submit Solution <ArrowRight className="w-4 h-4" />
           </button>
           <button
             onClick={toggleTheme}
-            className="p-1.5 border border-border rounded-lg bg-background text-foreground hover:bg-elevated transition-colors cursor-pointer"
+            className="p-2.5 border border-border rounded-xl bg-background text-foreground hover:bg-elevated transition-colors cursor-pointer shadow-sm"
             title="Toggle Theme"
           >
-            {state.theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+            {state.theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
           </button>
         </div>
       </header>
@@ -379,41 +978,41 @@ function WorkspaceIDE() {
       {/* Main Multi-Pane IDE Workspace Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Explorer / Problem Instructions */}
-        <div className="w-96 border-r border-border bg-background flex flex-col select-none">
+        <div className="w-[450px] shrink-0 border-r border-border bg-background flex flex-col select-none">
           {/* Tab selectors */}
-          <div className="h-10 border-b border-border bg-surface flex text-xs font-bold text-secondary">
+          <div className="h-11.5 border-b border-border bg-surface flex text-base font-bold text-secondary">
             <button 
               onClick={() => setActiveTab("instructions")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "instructions" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "instructions" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
-              <Info className="w-3.5 h-3.5 mr-1.5" /> Brief
+              <Info className="w-4 h-4 mr-1.5" /> Brief
             </button>
             <button 
               onClick={() => setActiveTab("stack")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "stack" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "stack" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
-              <Settings className="w-3.5 h-3.5 mr-1.5" /> Stack
+              <Settings className="w-4 h-4 mr-1.5" /> Stack
             </button>
             <button 
               onClick={() => setActiveTab("hints")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "hints" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "hints" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
-              <HelpCircle className="w-3.5 h-3.5 mr-1.5" /> Hints
+              <HelpCircle className="w-4 h-4 mr-1.5" /> Hints
             </button>
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 p-6 overflow-y-auto text-sm leading-relaxed flex flex-col gap-6">
+          <div className="flex-1 p-6 overflow-y-auto text-base leading-relaxed flex flex-col gap-6 select-text">
             {activeTab === "instructions" && (
-              <div className="flex flex-col gap-4">
-                <h2 className="text-lg font-bold text-foreground tracking-wide border-b border-border pb-2">{challenge.title}</h2>
-                <div className="text-xs text-secondary whitespace-pre-wrap">{challenge.description}</div>
+              <div className="flex flex-col gap-5">
+                <h2 className="text-3xl font-bold text-foreground tracking-wide border-b border-border pb-2.5">{challenge.title}</h2>
+                <div className="text-[17px] text-foreground whitespace-pre-wrap leading-relaxed font-normal">{challenge.description}</div>
 
                 {/* Constraints */}
                 {challenge.constraints && challenge.constraints.length > 0 && (
-                  <div className="mt-4">
-                    <span className="text-xs uppercase font-bold text-secondary tracking-wider block mb-2">Constraints</span>
-                    <ul className="list-disc pl-4 text-xs text-secondary flex flex-col gap-1.5">
+                  <div className="mt-5">
+                    <span className="text-sm uppercase font-extrabold text-foreground tracking-widest block mb-2.5">// Constraints</span>
+                    <ul className="list-disc pl-5 text-[16px] text-foreground flex flex-col gap-2">
                       {challenge.constraints.map((c, idx) => (
                         <li key={idx}>{c}</li>
                       ))}
@@ -423,15 +1022,15 @@ function WorkspaceIDE() {
 
                 {/* Examples */}
                 {challenge.examples && challenge.examples.length > 0 && (
-                  <div className="mt-4">
-                    <span className="text-xs uppercase font-bold text-secondary tracking-wider block mb-2">Examples</span>
-                    <div className="flex flex-col gap-3 font-mono text-xs">
+                  <div className="mt-5">
+                    <span className="text-sm uppercase font-extrabold text-foreground tracking-widest block mb-2.5">// Examples</span>
+                    <div className="flex flex-col gap-4 font-mono text-[15px]">
                       {challenge.examples.map((ex, idx) => (
-                        <div key={idx} className="p-3.5 rounded-lg bg-inset border border-border">
-                          <div className="text-foreground">Input: <span className="text-secondary">{ex.input}</span></div>
-                          <div className="text-foreground mt-1">Output: <span className="text-secondary">{ex.output}</span></div>
+                        <div key={idx} className="p-4 rounded-xl bg-inset border border-border shadow-sm">
+                          <div className="text-foreground font-bold">Input: <span className="text-foreground font-medium">{ex.input}</span></div>
+                          <div className="text-foreground font-bold mt-1.5">Output: <span className="text-foreground font-medium">{ex.output}</span></div>
                           {ex.explanation && (
-                            <div className="text-secondary italic mt-1.5 opacity-80">// {ex.explanation}</div>
+                            <div className="text-foreground/90 italic mt-2 font-sans">// {ex.explanation}</div>
                           )}
                         </div>
                       ))}
@@ -442,35 +1041,35 @@ function WorkspaceIDE() {
             )}
 
             {activeTab === "stack" && (
-              <div className="flex flex-col gap-4 text-xs">
-                <h3 className="text-sm font-bold text-foreground tracking-wide border-b border-border pb-2">Target Stack & Details</h3>
-                <div className="flex flex-col gap-3">
-                  <div className="flex justify-between border-b border-border pb-2">
-                    <span className="text-secondary">Code Language</span>
-                    <span className="text-foreground font-mono">{challenge.language}</span>
+              <div className="flex flex-col gap-5 text-[16.5px]">
+                <h3 className="text-xl font-bold text-foreground tracking-wide border-b border-border pb-2.5">Target Stack & Details</h3>
+                <div className="flex flex-col gap-4.5">
+                  <div className="flex justify-between border-b border-border pb-2.5">
+                    <span className="text-foreground font-semibold">Code Language</span>
+                    <span className="text-foreground font-mono font-bold">{challenge.language}</span>
                   </div>
-                  <div className="flex justify-between border-b border-border pb-2">
-                    <span className="text-secondary">Target Framework</span>
-                    <span className="text-foreground font-mono">{challenge.framework}</span>
+                  <div className="flex justify-between border-b border-border pb-2.5">
+                    <span className="text-foreground font-semibold">Target Framework</span>
+                    <span className="text-foreground font-mono font-bold">{challenge.framework}</span>
                   </div>
-                  <div className="flex justify-between border-b border-border pb-2">
-                    <span className="text-secondary">Benchmark Rating</span>
+                  <div className="flex justify-between border-b border-border pb-2.5">
+                    <span className="text-foreground font-semibold">Benchmark Rating</span>
                     <span className="text-foreground font-bold">{challenge.difficultyRating} ELO</span>
                   </div>
                 </div>
-                <div className="p-4 rounded-xl bg-inset border border-border text-secondary mt-4 leading-relaxed">
+                <div className="p-5 rounded-xl bg-inset border border-border text-[16.5px] text-foreground mt-5 leading-relaxed shadow-sm">
                   <strong className="text-foreground">Stack Guide:</strong> Implement production-ready validation. Protect against nested scan loops and use memory caches (like Map lookups) to achieve Senior Dev efficiency rankings.
                 </div>
               </div>
             )}
 
             {activeTab === "hints" && (
-              <div className="flex flex-col gap-4 text-xs">
-                <h3 className="text-sm font-bold text-foreground tracking-wide border-b border-border pb-2">Unlockable Hints</h3>
+              <div className="flex flex-col gap-5 text-[16.5px]">
+                <h3 className="text-xl font-bold text-foreground tracking-wide border-b border-border pb-2.5">Unlockable Hints</h3>
                 {challenge.hints.map((hint, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border border-border bg-inset flex flex-col gap-2">
-                    <span className="font-bold text-foreground tracking-wider uppercase text-[10px]">Hint #{idx + 1}</span>
-                    <p className="text-secondary leading-relaxed">{hint}</p>
+                  <div key={idx} className="p-5 rounded-xl border border-border bg-inset shadow-sm flex flex-col gap-2.5">
+                    <span className="font-extrabold text-foreground tracking-wider uppercase text-sm">Hint #{idx + 1}</span>
+                    <p className="text-[16.5px] text-foreground leading-relaxed font-normal">{hint}</p>
                   </div>
                 ))}
               </div>
@@ -488,71 +1087,148 @@ function WorkspaceIDE() {
               theme={state.theme === "light" ? "light" : "vs-dark"}
               value={code}
               onChange={handleCodeChange}
+              onMount={handleEditorDidMount}
               options={{
-                fontSize: 13,
+                fontSize: fontSize,
                 fontFamily: "Geist Mono, Courier New, monospace",
-                minimap: { enabled: false },
+                minimap: { enabled: true, scale: 0.75 },
                 lineNumbers: "on",
                 wordWrap: "on",
                 automaticLayout: true,
-                padding: { top: 16 }
+                folding: true,
+                bracketPairColorization: { enabled: true },
+                cursorBlinking: "smooth",
+                cursorSmoothCaretAnimation: "on",
+                lineHeight: 22,
+                padding: { top: 16 },
+                glyphMargin: true,
+                suggestOnTriggerCharacters: true,
+                scrollbar: {
+                  vertical: "visible",
+                  horizontal: "visible",
+                  verticalScrollbarSize: 8,
+                  horizontalScrollbarSize: 8,
+                }
               }}
             />
           </div>
 
-          {/* Bottom Panel: Output Console */}
-          <div className="h-56 border-t border-border bg-background flex flex-col overflow-hidden select-none">
-            <div className="h-8 border-b border-border bg-surface px-6 flex items-center justify-between text-xs font-bold text-secondary">
-              <div className="flex items-center gap-2">
-                <TermIcon className="w-3.5 h-3.5 text-secondary" /> Output Console
+          {/* Bottom Panel: Output Console & Diagnostics */}
+          <div className="h-60 border-t border-border bg-background flex flex-col overflow-hidden select-none">
+            <div className="h-9.5 border-b border-border bg-surface px-6 flex items-center justify-between text-sm font-bold text-secondary">
+              <div className="flex gap-4 h-full">
+                <button
+                  onClick={() => setConsoleTab("terminal")}
+                  className={`h-full flex items-center gap-1.5 border-b-2 px-1 transition-all ${consoleTab === "terminal" ? "border-foreground text-foreground bg-elevated/10" : "border-transparent hover:text-foreground cursor-pointer"}`}
+                >
+                  <TermIcon className="w-4 h-4 text-secondary" /> Console Output
+                </button>
+                <button
+                  onClick={() => setConsoleTab("problems")}
+                  className={`h-full flex items-center gap-1.5 border-b-2 px-1 transition-all ${consoleTab === "problems" ? "border-foreground text-foreground bg-elevated/10" : "border-transparent hover:text-foreground cursor-pointer"}`}
+                >
+                  <AlertTriangle className={`w-4 h-4 ${diagnostics.filter(d => d.type !== "strong-move" && d.type !== "excellent-tradeoff").length > 0 ? "text-red animate-pulse" : "text-secondary"}`} /> 
+                  Problems ({diagnostics.length})
+                </button>
               </div>
-              <button 
-                onClick={() => setTerminalOutput([])}
-                className="hover:text-foreground transition-colors text-[10px] cursor-pointer"
-              >
-                Clear Terminal
-              </button>
+              
+              {consoleTab === "terminal" ? (
+                <button 
+                  onClick={() => setTerminalOutput([])}
+                  className="hover:text-foreground transition-colors text-xs cursor-pointer font-sans"
+                >
+                  Clear Terminal
+                </button>
+              ) : null}
             </div>
             
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-[11px] text-secondary bg-background flex flex-col gap-1 select-text">
-              {terminalOutput.length === 0 ? (
-                <span className="italic opacity-60">Terminal idle. Click "Run Code" below to initialize local build sandbox...</span>
+            <div className="flex-1 p-4 overflow-y-auto bg-background select-text">
+              {consoleTab === "terminal" ? (
+                <div className="font-mono text-xs text-secondary flex flex-col gap-1.5">
+                  {terminalOutput.length === 0 ? (
+                    <span className="italic opacity-60">Terminal idle. Click "Run Code" below to initialize local build sandbox...</span>
+                  ) : (
+                    terminalOutput.map((line, idx) => (
+                      <div key={idx} className={line.startsWith("✗") ? "text-red font-bold" : line.startsWith("✓") ? "text-green font-bold" : ""}>
+                        {line}
+                      </div>
+                    ))
+                  )}
+                </div>
               ) : (
-                terminalOutput.map((line, idx) => (
-                  <div key={idx} className={line.startsWith("✗") ? "text-red font-bold" : line.startsWith("✓") ? "text-green font-bold" : ""}>
-                    {line}
-                  </div>
-                ))
+                <div className="flex flex-col gap-2.5 font-sans text-sm">
+                  {diagnostics.length === 0 ? (
+                    <span className="italic opacity-60 text-secondary p-1">No analysis issues detected in your code. Good code quality!</span>
+                  ) : (
+                    diagnostics.map((d, idx) => {
+                      const isGoodMove = d.type === "strong-move" || d.type === "excellent-tradeoff";
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`p-3 rounded-lg border flex gap-3 leading-relaxed transition-all ${
+                            isGoodMove 
+                              ? "bg-indigo-950/20 border-indigo-900/40 text-indigo-400" 
+                              : "bg-red-950/20 border-red-900/40 text-rose-400"
+                          }`}
+                        >
+                          <div className="mt-0.5 shrink-0">
+                            {isGoodMove ? <Award className="w-4.5 h-4.5" /> : <AlertTriangle className="w-4.5 h-4.5" />}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-bold flex items-center justify-between">
+                              <span>{d.title}</span>
+                              {d.line && <span className="font-mono text-xs opacity-75">Line {d.line}</span>}
+                            </div>
+                            <div className="text-secondary text-xs mt-0.5">{d.description}</div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               )}
             </div>
 
             {/* Run button tray */}
-            <div className="h-12 border-t border-border bg-surface px-6 flex items-center justify-end select-none">
-              <button 
-                onClick={handleRunCode}
-                className="px-4 py-1.5 rounded-lg border border-border bg-background text-foreground font-bold text-xs hover:bg-elevated transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <Play className="w-3 h-3 text-foreground fill-current" /> Run Code
-              </button>
+            <div className="h-15 border-t border-border bg-surface px-6 flex items-center justify-between select-none">
+              <div className="text-xs text-foreground flex items-center gap-2 font-mono font-bold">
+                <span className="w-2.5 h-2.5 rounded-full bg-green animate-pulse" />
+                <span>local-sandbox-node: v19.x</span>
+              </div>
+              
+              <div className="flex gap-2.5">
+                <button 
+                  onClick={handleFormatCode}
+                  className="px-6 py-2.5 rounded-xl border border-border bg-background text-foreground font-extrabold text-sm hover:bg-elevated transition-all flex items-center gap-1.5 cursor-pointer font-sans shadow-sm"
+                >
+                  Format Code
+                </button>
+                <button 
+                  onClick={handleRunCode}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition-all flex items-center gap-2 cursor-pointer font-sans shadow-md"
+                >
+                  <Play className="w-4 h-4 fill-current text-white" /> Run Code
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Right Panel: Chat Console and Test Cases */}
-        <div className="w-96 border-l border-border bg-background flex flex-col overflow-hidden">
+        <div className="w-[430px] shrink-0 border-l border-border bg-background flex flex-col overflow-hidden">
           {/* Right tab selectors */}
-          <div className="h-10 border-b border-border bg-surface flex text-xs font-bold text-secondary select-none">
+          <div className="h-11.5 border-b border-border bg-surface flex text-base font-bold text-secondary select-none">
             <button 
               onClick={() => setActiveRightTab("chat")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "chat" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "chat" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
-              <MessageSquare className="w-3.5 h-3.5 mr-1.5" /> AI Interviewer Chat
+              <MessageSquare className="w-4 h-4 mr-1.5" /> AI Interviewer Chat
             </button>
             <button 
               onClick={() => setActiveRightTab("tests")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "tests" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "tests" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
-              <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Test Suite
+              <CheckCircle className="w-4 h-4 mr-1.5" /> Test Suite
             </button>
           </div>
 
@@ -571,7 +1247,7 @@ function WorkspaceIDE() {
                     <button
                       key={agentName}
                       onClick={() => setSelectedAgent(agentName as any)}
-                      className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
+                      className={`px-3.5 py-1.5 rounded-lg border text-sm font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
                     >
                       {prof.avatar} {prof.name.split(" ")[0]}
                     </button>
@@ -589,13 +1265,13 @@ function WorkspaceIDE() {
 
                   return (
                     <div key={idx} className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
-                      <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-secondary select-none">
+                      <div className="flex items-center gap-1.5 text-xs uppercase font-bold text-secondary select-none">
                         {!isUser && <span>{prof?.avatar} {prof?.name}</span>}
                         {isUser && <span>User</span>}
                         <span>•</span>
                         <span>{msg.time}</span>
                       </div>
-                      <div className={`p-3.5 rounded-xl text-xs leading-relaxed max-w-[85%] border ${isUser ? "bg-foreground border-foreground text-background rounded-tr-none font-medium" : "bg-surface border-border text-foreground rounded-tl-none font-sans"}`}>
+                      <div className={`p-3.5 rounded-xl text-[15px] leading-relaxed max-w-[85%] border ${isUser ? "bg-foreground border-foreground text-background rounded-tr-none font-medium" : "bg-surface border-border text-foreground rounded-tl-none font-sans"}`}>
                         {msg.text}
                       </div>
                     </div>
@@ -604,20 +1280,20 @@ function WorkspaceIDE() {
             </div>
 
             {/* Text box input drawer */}
-            <div className="p-3 border-t border-border bg-surface flex gap-2 select-none">
+            <div className="p-3 border-t border-border bg-surface flex gap-2.5 select-none">
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                 placeholder={`Reply to ${AGENT_PROFILES[selectedAgent]?.name}...`}
-                className="flex-1 bg-background border border-border rounded-lg px-3.5 py-2 text-xs text-foreground placeholder-muted focus:border-border-muted outline-none transition-colors"
+                className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-[15px] text-foreground placeholder-muted focus:border-border-active outline-none transition-colors"
               />
               <button
                 onClick={handleSendMessage}
-                className="w-8 h-8 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer"
+                className="w-9.5 h-9.5 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer shrink-0"
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-4 h-4" />
               </button>
             </div>
               </div>
@@ -625,19 +1301,19 @@ function WorkspaceIDE() {
 
             {activeRightTab === "tests" && (
               <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
-                <span className="text-xs font-semibold uppercase tracking-wider text-secondary select-none">Assertions Results</span>
-                <div className="flex flex-col gap-3">
+                <span className="text-base font-extrabold uppercase tracking-wider text-foreground select-none">Assertions Results</span>
+                <div className="flex flex-col gap-3.5">
                   {testResults.map((tc, idx) => (
                     <div key={idx} className="p-4 rounded-xl border border-border bg-inset flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-secondary">TC #{idx + 1}: {tc.name}</span>
-                        {tc.status === "idle" && <span className="text-xs text-secondary font-semibold select-none">Idle</span>}
-                        {tc.status === "running" && <span className="text-xs text-secondary font-semibold animate-pulse select-none">Running...</span>}
-                        {tc.status === "passed" && <span className="text-xs text-green font-semibold select-none">✓ Passed</span>}
-                        {tc.status === "failed" && <span className="text-xs text-red font-semibold select-none">✗ Failed</span>}
+                        <span className="font-mono text-sm text-foreground font-bold">TC #{idx + 1}: {tc.name}</span>
+                        {tc.status === "idle" && <span className="text-sm text-foreground/80 font-bold select-none">Idle</span>}
+                        {tc.status === "running" && <span className="text-sm text-foreground/80 font-bold animate-pulse select-none">Running...</span>}
+                        {tc.status === "passed" && <span className="text-base text-green font-extrabold select-none">✓ Passed</span>}
+                        {tc.status === "failed" && <span className="text-base text-red font-extrabold select-none">✗ Failed</span>}
                       </div>
                       {tc.output && (
-                        <div className="p-2.5 rounded-lg bg-background font-mono text-[10px] text-secondary select-text border border-border">
+                        <div className="p-3 rounded-lg bg-background font-mono text-sm text-foreground select-text border border-border">
                           {tc.output}
                         </div>
                       )}
@@ -646,11 +1322,38 @@ function WorkspaceIDE() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
-
       </div>
     </div>
   );
+}
+
+// Fallback basic indentation formatter for offline use cases
+function formatCodeFallback(code: string, language: string): string {
+  if (!code) return "";
+  const lines = code.split("\n");
+  let indentLevel = 0;
+  
+  const formattedLines = lines.map(line => {
+    let trimmed = line.trim();
+    if (!trimmed) return "";
+
+    // Decrease indentation if line starts with a closing brace
+    if (trimmed.startsWith("}") || trimmed.startsWith("]") || trimmed.startsWith(")")) {
+      indentLevel = Math.max(0, indentLevel - 1);
+    }
+
+    const indent = "  ".repeat(indentLevel);
+    const result = indent + trimmed;
+
+    // Increase indentation if line ends with an opening brace
+    if (trimmed.endsWith("{") || trimmed.endsWith("[") || trimmed.endsWith("(")) {
+      indentLevel++;
+    }
+
+    return result;
+  });
+
+  return formattedLines.join("\n");
 }

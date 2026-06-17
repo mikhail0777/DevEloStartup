@@ -182,3 +182,49 @@ html:not(.light) .monaco-editor, html:not(.light) .monaco-editor .margin {
 html:not(.light) .monaco-editor-background {
   background-color: #0D1117 !important;
 }
+
+/* Chess-style annotations for Monaco Editor */
+.monaco-strong-move-glyph {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.monaco-strong-move-glyph::before {
+  content: "★";
+  color: #58A6FF;
+  font-weight: bold;
+  font-size: 14px;
+  display: block;
+  text-align: center;
+  line-height: 22px;
+}
+
+.monaco-excellent-move-glyph {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.monaco-excellent-move-glyph::before {
+  content: "⚿";
+  color: #3FB950;
+  font-weight: bold;
+  font-size: 14px;
+  display: block;
+  text-align: center;
+  line-height: 22px;
+}
+
+.monaco-mistake-glyph {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.monaco-mistake-glyph::before {
+  content: "⚠";
+  color: #F85149;
+  font-weight: bold;
+  font-size: 14px;
+  display: block;
+  text-align: center;
+  line-height: 22px;
+}

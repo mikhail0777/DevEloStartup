@@ -156,6 +156,191 @@ export const scanUserCode = (code: string, language: string): MistakeLog[] => {
     });
   }
 
+  // 5. Stripe Webhook-specific Checks
+  if (code.includes("verifyWebhook") || code.includes("verify_webhook")) {
+    const hasCrypto = /createHmac|crypto|hmac|hashlib/.test(code);
+    const hasReplayCheck = /300|Math\.abs|abs\(|Date\.now|time\.time/.test(code);
+
+    if (!hasCrypto) {
+      logs.push({
+        id: "webhook-insecure-crypto",
+        type: "critical-miss",
+        title: "Insecure Cryptographic Check",
+        description: "Critical Warning: Signature validation should leverage cryptographically secure HMAC SHA-256 validation to prevent payload spoofing.",
+        line: 5
+      });
+    } else {
+      logs.push({
+        id: "webhook-secure-crypto",
+        type: "excellent-tradeoff",
+        title: "Secure Cryptographic Validation",
+        description: "Excellent Move: Using cryptographically secure HMAC validation ensures raw webhook integrity.",
+        line: 8
+      });
+    }
+
+    if (!hasReplayCheck) {
+      logs.push({
+        id: "webhook-replay-vulnerable",
+        type: "critical-miss",
+        title: "Missing Replay Protection",
+        description: "Security Vulnerability: Webhook is vulnerable to replay attacks. Enforce a threshold verification on the header timestamp (e.g. 5-minute/300-second window).",
+        line: 6
+      });
+    } else {
+      logs.push({
+        id: "webhook-replay-safe",
+        type: "excellent-tradeoff",
+        title: "Replay Attack Prevention",
+        description: "Strong Move: Restricting the signature timestamp comparison to a 300-second window protects against verification spoofing.",
+        line: 12
+      });
+    }
+  }
+
+  // 6. Redis Rate Limiter-specific Checks
+  if (code.includes("isAllowed") || code.includes("is_allowed")) {
+    const hasMulti = /multi|pipeline/.test(code);
+    const hasEvict = /zremrangebyscore|zremrange|ZREMRANGEBYSCORE|ZREMRANGE/.test(code);
+
+    if (!hasMulti) {
+      logs.push({
+        id: "rate-limiter-race-condition",
+        type: "critical-miss",
+        title: "Concurreny Race Condition",
+        description: "High Risk: Executing Redis queries sequentially can lead to race conditions. Utilize an atomic pipeline/transaction (multi/pipeline) to isolate queries.",
+        line: 5
+      });
+    } else {
+      logs.push({
+        id: "rate-limiter-atomic",
+        type: "excellent-tradeoff",
+        title: "Atomic Redis Transaction",
+        description: "Excellent Move: Grouping operations in an atomic multi pipeline ensures transaction safety under load.",
+        line: 10
+      });
+    }
+
+    if (!hasEvict) {
+      logs.push({
+        id: "rate-limiter-no-eviction",
+        type: "bug",
+        title: "Missing Window Cleanup",
+        description: "Logical Issue: Timestamps older than the sliding window size should be evicted (ZREMRANGEBYSCORE) before counting requests.",
+        line: 4
+      });
+    }
+  }
+
+  // 7. JWT JWKS-specific Checks
+  if (code.includes("verifyJwtJwks") || code.includes("verify_jwt_jwks")) {
+    const hasKid = /kid|header/.test(code);
+    const hasExp = /exp|expiration|now/.test(code);
+
+    if (!hasKid) {
+      logs.push({
+        id: "jwt-missing-kid",
+        type: "critical-miss",
+        title: "Missing Key ID Matching",
+        description: "Critical Miss: JWT verification must extract the key identifier ('kid') from the token header to match it with the JWKS key pool.",
+        line: 4
+      });
+    } else {
+      logs.push({
+        id: "jwt-kid-match",
+        type: "excellent-tradeoff",
+        title: "Dynamic Key Identification",
+        description: "Strong Move: Successfully parsing and matching key IDs ensures correct cryptographic verify signatures are mapped.",
+        line: 6
+      });
+    }
+
+    if (!hasExp) {
+      logs.push({
+        id: "jwt-missing-exp",
+        type: "critical-miss",
+        title: "Missing Expiration Bounds",
+        description: "Security Issue: Token expiration ('exp') claims must be verified against current epoch seconds to block expired credential reuse.",
+        line: 5
+      });
+    } else {
+      logs.push({
+        id: "jwt-exp-safe",
+        type: "excellent-tradeoff",
+        title: "Token Lifetime Restraints",
+        description: "Excellent Tradeoff: Asserting token expiration guards the endpoint from stale session replay hijacks.",
+        line: 10
+      });
+    }
+  }
+
+  // 8. Fetch Retry-specific Checks
+  if (code.includes("fetchWithRetry") || code.includes("fetch_with_retry")) {
+    const hasBackoff = /pow|multiplier|\*\*/.test(code);
+    const hasJitter = /random|Jitter/.test(code);
+
+    if (!hasBackoff) {
+      logs.push({
+        id: "retry-flat-interval",
+        type: "critical-miss",
+        title: "Flat Retry Intervals",
+        description: "Performance Bug: Retrying with static bounds rather than exponential scale delays will overload struggling backend servers.",
+        line: 6
+      });
+    } else {
+      logs.push({
+        id: "retry-exponential-scale",
+        type: "excellent-tradeoff",
+        title: "Exponential Backoff Scaler",
+        description: "Excellent Tradeoff: Scaling retries exponentially allows backend services recovery buffers under load.",
+        line: 8
+      });
+    }
+
+    if (!hasJitter) {
+      logs.push({
+        id: "retry-missing-jitter",
+        type: "bug",
+        title: "Thundering Herd Vulnerability",
+        description: "Vulnerability: Lack of randomized delay jitter coordinates failed clients to retry at the same time, triggering stampedes.",
+        line: 7
+      });
+    } else {
+      logs.push({
+        id: "retry-jitter-protected",
+        type: "strong-move",
+        title: "Client Request De-synchronization",
+        description: "Strong Move: Adding randomized jitter offsets request timing, flattening the retry peak traffic curves.",
+        line: 12
+      });
+    }
+  }
+
+  // 9. Circuit Breaker-specific Checks
+  if (code.includes("CircuitBreaker")) {
+    const hasClosed = /CLOSED/.test(code);
+    const hasOpen = /OPEN/.test(code);
+    const hasHalfOpen = /HALF-OPEN/.test(code);
+
+    if (!hasClosed || !hasOpen || !hasHalfOpen) {
+      logs.push({
+        id: "circuit-breaker-missing-states",
+        type: "critical-miss",
+        title: "Incomplete Circuit States",
+        description: "Logic Warning: Circuit breaker wrapper must support all three standard states (CLOSED, OPEN, HALF-OPEN) to self-heal.",
+        line: 5
+      });
+    } else {
+      logs.push({
+        id: "circuit-breaker-tri-state",
+        type: "excellent-tradeoff",
+        title: "Self-Healing Circuit States",
+        description: "Strong Move: Implementing CLOSED, OPEN, and HALF-OPEN transitions enables self-healing fail-safe bounds.",
+        line: 8
+      });
+    }
+  }
+
   return logs;
 };
 

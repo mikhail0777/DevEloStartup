@@ -1,3 +1,5 @@
+import { getProceduralChallenges } from "./procedural_challenges";
+
 export interface Example {
   input: string;
   output: string;
@@ -525,7 +527,7 @@ export interface ChallengeDefinition {
   }>;
 }
 
-export const CHALLENGES_DATABASE: ChallengeDefinition[] = [
+const STATIC_CHALLENGES: ChallengeDefinition[] = [
   {
     id: "hello-develiq",
     title: "Hello Develiq!",
@@ -1028,8 +1030,122 @@ export const CHALLENGES_DATABASE: ChallengeDefinition[] = [
         ]
       }
     }
+  },
+  {
+    id: "stripe-webhook",
+    title: "Stripe Webhook Signature Verifier",
+    category: "Debugging",
+    difficulty: "Medium",
+    elo: 1350,
+    description: "Write a function `verifyWebhook(payload, header, secret)` that validates if a Stripe Webhook signature is authentic to prevent payload tampering.\n\nStripe webhook headers are formatted as a comma-separated list of values:\n`t=timestamp,v1=signature`\n\nTo verify the webhook:\n1. Split the header to extract the integer `timestamp` (t) and the string `signature` (v1).\n2. Concatenate the timestamp string, the character `.`, and the raw string `payload` to form the signature payload (e.g., `1600000000.rawPayloadString`).\n3. Create a SHA-256 HMAC hash of the signature payload using the signing `secret` key.\n4. Check if the computed hex signature matches the signature parsed from the header.\n5. Check if the timestamp is within a 5-minute (300 seconds) tolerance window of the current system time to protect against replay attacks.",
+    constraints: [
+      "Must use standard cryptographically secure hex validation (HMAC SHA-256).",
+      "Reject signatures that do not match.",
+      "Reject timestamps older or newer than 300 seconds compared to system epoch seconds."
+    ],
+    examples: [
+      {
+        input: "payload = '{\"id\": \"evt_1\"}', header = 't=1672531200,v1=3074092b...', secret = 'whsec_secret'",
+        output: "true",
+        explanation: "Matches HMAC SHA-256 exactly and timestamp is inside the 5-minute range."
+      }
+    ],
+    hints: [
+      "Use `crypto.createHmac('sha256', secret).update(signedPayload).digest('hex')` in JavaScript.",
+      "Remember to convert timestamps to seconds since epoch for comparison."
+    ],
+    templates: {
+      JavaScript: {
+        starterCode: `const crypto = require('crypto');\n\nfunction verifyWebhook(payload, header, secret) {\n  // TODO: Verify Stripe signature and protect against replay attacks\n  return false;\n}`,
+        solutionTemplate: `const crypto = require('crypto');\n\nfunction verifyWebhook(payload, header, secret) {\n  if (!payload || !header || !secret) return false;\n  \n  const parts = header.split(',');\n  let timestamp = '';\n  let signature = '';\n  \n  for (const part of parts) {\n    if (part.startsWith('t=')) timestamp = part.split('=')[1];\n    if (part.startsWith('v1=')) signature = part.split('=')[1];\n  }\n  \n  if (!timestamp || !signature) return false;\n  \n  // Check replay window (300 seconds)\n  const nowSeconds = Math.floor(Date.now() / 1000);\n  const timestampSec = parseInt(timestamp, 10);\n  if (Math.abs(nowSeconds - timestampSec) > 300) {\n    return false;\n  }\n  \n  const signedPayload = timestamp + '.' + payload;\n  const expectedSignature = crypto\n    .createHmac('sha256', secret)\n    .update(signedPayload)\n    .digest('hex');\n    \n  return signature === expectedSignature;\n}`,
+        testCases: [
+          { id: "tc1", input: "valid header signature matches", expected: "true", isHidden: false },
+          { id: "tc2", input: "tampered payload mismatch", expected: "false", isHidden: false },
+          { id: "tc3", input: "expired replay attack signature", expected: "false", isHidden: true }
+        ]
+      },
+      TypeScript: {
+        starterCode: `import * as crypto from 'crypto';\n\nexport function verifyWebhook(payload: string, header: string, secret: string): boolean {\n  return false;\n}`,
+        solutionTemplate: `import * as crypto from 'crypto';\n\nexport function verifyWebhook(payload: string, header: string, secret: string): boolean {\n  if (!payload || !header || !secret) return false;\n  \n  const parts = header.split(',');\n  let timestamp = '';\n  let signature = '';\n  \n  for (const part of parts) {\n    if (part.startsWith('t=')) timestamp = part.split('=')[1];\n    if (part.startsWith('v1=')) signature = part.split('=')[1];\n  }\n  \n  if (!timestamp || !signature) return false;\n  \n  const nowSeconds = Math.floor(Date.now() / 1000);\n  const timestampSec = parseInt(timestamp, 10);\n  if (Math.abs(nowSeconds - timestampSec) > 300) {\n    return false;\n  }\n  \n  const signedPayload = timestamp + '.' + payload;\n  const expectedSignature = crypto\n    .createHmac('sha256', secret)\n    .update(signedPayload)\n    .digest('hex');\n    \n  return signature === expectedSignature;\n}`,
+        testCases: [
+          { id: "tc1", input: "valid validation signature matches", expected: "true", isHidden: false }
+        ]
+      },
+      Python: {
+        starterCode: `import hmac\nimport hashlib\nimport time\n\ndef verify_webhook(payload: str, header: str, secret: str) -> bool:\n    # TODO: Verify Stripe signature\n    return False`,
+        solutionTemplate: `import hmac\nimport hashlib\nimport time\n\ndef verify_webhook(payload: str, header: str, secret: str) -> bool:\n    if not payload or not header or not secret:\n        return False\n    parts = header.split(',')\n    timestamp, signature = '', ''\n    for part in parts:\n        if part.startswith('t='):\n            timestamp = part.split('=')[1]\n        elif part.startswith('v1='):\n            signature = part.split('=')[1]\n    if not timestamp or not signature:\n        return False\n    try:\n        ts_sec = int(timestamp)\n    except ValueError:\n        return False\n    if abs(time.time() - ts_sec) > 300:\n        return False\n    signed_payload = f"{timestamp}.{payload}"\n    expected = hmac.new(secret.encode(), signed_payload.encode(), hashlib.sha256).hexdigest()\n    return hmac.compare_digest(signature, expected)`,
+        testCases: [
+          { id: "tc1", input: "valid signature checks", expected: "True", isHidden: false }
+        ]
+      }
+    }
+  },
+  {
+    id: "redis-rate-limiter",
+    title: "Redis-backed Sliding Window Rate Limiter",
+    category: "System Design",
+    difficulty: "Medium",
+    elo: 1550,
+    description: "Implement a sliding window rate limiter function `isAllowed(userId, limit, windowSizeSeconds, redisClient)` that determines if a client key should be throttled.\n\nYou should track timestamps in a Redis Sorted Set (`ZSET`) keyed by client user ID.\n\nYour rate limiter algorithm must perform the following actions atomically in order:\n1. Evict request timestamps that are older than the active sliding window (`now - windowSizeSeconds`).\n2. Count the total remaining items in the sorted set.\n3. If the total requests count is less than `limit`:\n   - Add the current timestamp string to the sorted set with value/score equal to the current epoch timestamp.\n   - Return `true` (request allowed).\n4. Otherwise, return `false` (request blocked).",
+    constraints: [
+      "Use Redis sorted set commands ZREMRANGEBYSCORE, ZCARD, and ZADD.",
+      "Ensure requests exceeding limit are rejected immediately.",
+      "Time complexity of ZSET transactions should optimize caching lookups."
+    ],
+    examples: [
+      {
+        input: "userId = 'user_1', limit = 2, windowSizeSeconds = 10",
+        output: "true",
+        explanation: "First request within window, count is 0, allowed."
+      }
+    ],
+    hints: [
+      "Use redisClient.multi() or exec scripting to ensure atomicity in production.",
+      "Store timestamps with score = epoch timestamp millisecond values."
+    ],
+    templates: {
+      JavaScript: {
+        starterCode: `async function isAllowed(userId, limit, windowSizeSeconds, redisClient) {\n  // TODO: Implement sliding window rate limit using Redis Sorted Sets\n  return false;\n}`,
+        solutionTemplate: `async function isAllowed(userId, limit, windowSizeSeconds, redisClient) {\n  const now = Date.now();\n  const clearBefore = now - (windowSizeSeconds * 1000);\n  \n  // Atomic Redis pipeline\n  const pipeline = redisClient.multi();\n  pipeline.zremrangebyscore(userId, 0, clearBefore);\n  pipeline.zcard(userId);\n  pipeline.zadd(userId, now, now.toString());\n  \n  const results = await pipeline.exec();\n  const activeCount = results[1][1]; // ZCARD result\n  \n  if (activeCount >= limit) {\n    // Over limit, evict the ZADD we just did or block request\n    await redisClient.zrem(userId, now.toString());\n    return false;\n  }\n  \n  return true;\n}`,
+        testCases: [
+          { id: "tc1", input: "under limit allowed", expected: "true", isHidden: false },
+          { id: "tc2", input: "over limit blocked", expected: "false", isHidden: false }
+        ]
+      },
+      TypeScript: {
+        starterCode: `export async function isAllowed(userId: string, limit: number, windowSizeSeconds: number, redisClient: any): Promise<boolean> {\n  return false;\n}`,
+        solutionTemplate: `export async function isAllowed(userId: string, limit: number, windowSizeSeconds: number, redisClient: any): Promise<boolean> {\n  const now = Date.now();\n  const clearBefore = now - (windowSizeSeconds * 1000);\n  \n  const pipeline = redisClient.multi();\n  pipeline.zremrangebyscore(userId, 0, clearBefore);\n  pipeline.zcard(userId);\n  pipeline.zadd(userId, now, now.toString());\n  \n  const results = await pipeline.exec();\n  const activeCount = results[1][1];\n  \n  if (activeCount >= limit) {\n    await redisClient.zrem(userId, now.toString());\n    return false;\n  }\n  \n  return true;\n}`,
+        testCases: [
+          { id: "tc1", input: "under limit allowed", expected: "true", isHidden: false }
+        ]
+      },
+      Python: {
+        starterCode: `import time\n\ndef is_allowed(user_id: str, limit: int, window_size_seconds: int, redis_client) -> bool:\n    # TODO: Implement Redis rate limiter\n    return False`,
+        solutionTemplate: `import time\n\ndef is_allowed(user_id: str, limit: int, window_size_seconds: int, redis_client) -> bool:\n    now = int(time.time() * 1000)\n    clear_before = now - (window_size_seconds * 1000)\n    \n    pipe = redis_client.pipeline()\n    pipe.zremrangebyscore(user_id, 0, clear_before)\n    pipe.zcard(user_id)\n    pipe.zadd(user_id, {str(now): now})\n    \n    results = pipe.execute()\n    active_count = results[1]\n    \n    if active_count >= limit:\n        redis_client.zrem(user_id, str(now))\n        return False\n        \n    return True`,
+        testCases: [
+          { id: "tc1", input: "under limit allowed", expected: "True", isHidden: false }
+        ]
+      }
+    }
   }
 ];
+
+const uniqueChallengesMap = new Map<string, ChallengeDefinition>();
+STATIC_CHALLENGES.forEach(ch => uniqueChallengesMap.set(ch.id, ch));
+getProceduralChallenges().forEach(ch => {
+  if (!uniqueChallengesMap.has(ch.id)) {
+    uniqueChallengesMap.set(ch.id, ch);
+  }
+});
+
+const uniqueChallenges = Array.from(uniqueChallengesMap.values());
+
+const DIFFICULTY_WEIGHT: Record<string, number> = { "Easy": 1, "Medium": 2, "Hard": 3 };
+uniqueChallenges.sort((a, b) => {
+  return (DIFFICULTY_WEIGHT[a.difficulty] || 2) - (DIFFICULTY_WEIGHT[b.difficulty] || 2);
+});
+
+export const CHALLENGES_DATABASE: ChallengeDefinition[] = uniqueChallenges;
 
 export const getCareerRankForElo = (elo: number): string => {
   if (elo < 700) return "Beginner / Intro";
