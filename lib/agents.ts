@@ -220,7 +220,7 @@ export const getAgentResponse = async (
 
   // Real Gemini LLM Dialogue Call
   try {
-    const prompt = `You are the DevElo AI agent: ${profile.name} (${profile.role}).
+    const prompt = `You are the Develiq AI agent: ${profile.name} (${profile.role}).
 Personality: ${profile.description}
 
 Current Workspace State:

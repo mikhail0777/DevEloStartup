@@ -49,6 +49,7 @@ export interface MatchHistoryItem {
 }
 
 export interface UserProfileState {
+  user: { name: string; email: string; password?: string } | null;
   xp: number;
   streak: number;
   streakDates: string[]; // ISO Date strings
@@ -57,55 +58,27 @@ export interface UserProfileState {
   unlockedBadges: string[];
   history: MatchHistoryItem[];
   geminiApiKey: string;
+  theme: "dark" | "light";
 }
 
 const DEFAULT_STATE: UserProfileState = {
-  xp: 450,
-  streak: 3,
-  streakDates: ["2026-05-19", "2026-05-20", "2026-05-21"],
-  rating: 1120, // New Grad level
-  offerReadiness: 48,
-  unlockedBadges: ["First Submit"],
-  history: [
-    {
-      id: "demo-match-1",
-      title: "Filter Job Applications by Status",
-      role: "Full Stack Developer",
-      level: "New Grad",
-      mode: "Real Interview",
-      language: "JavaScript",
-      framework: "React",
-      date: "2026-05-20",
-      overallScore: 78,
-      eloChange: 35,
-      passedCount: 4,
-      totalCount: 5,
-      ratingBefore: 1085,
-      ratingAfter: 1120,
-      mistakes: [
-        {
-          id: "m1",
-          type: "missed-edge-case",
-          title: "Failed Empty Array Input",
-          description: "When the application list is empty, the function returns undefined instead of an empty array.",
-          line: 5,
-        },
-        {
-          id: "m2",
-          type: "strong-move",
-          title: "Efficient Hashmap Selection",
-          description: "Chose a key-based Lookup Map for filtering priority tags, yielding O(1) matching time.",
-          line: 12,
-        }
-      ],
-      feedback: "Great initial explanation and fast implementation. Work on safeguarding against null inputs and boundary cases."
-    }
-  ],
-  geminiApiKey: ""
+  user: null,
+  xp: 0,
+  streak: 0,
+  streakDates: [],
+  rating: 1000, // Intern / Beginner level
+  offerReadiness: 0,
+  unlockedBadges: [],
+  history: [],
+  geminiApiKey: "",
+  theme: "dark"
 };
 
-interface DevEloStore {
+interface DeveliqStore {
   state: UserProfileState;
+  loginUser: (name: string, email: string, password?: string) => void;
+  updateUser: (name: string, email: string, password?: string) => void;
+  logoutUser: () => void;
   addXP: (amount: number) => void;
   updateELO: (change: number) => void;
   addMatch: (match: MatchHistoryItem) => void;
@@ -115,9 +88,10 @@ interface DevEloStore {
   resetState: () => void;
   getCareerRank: () => CareerRank;
   getScoreBreakdown: () => ScoreBreakdown;
+  toggleTheme: () => void;
 }
 
-const StoreContext = createContext<DevEloStore | undefined>(undefined);
+const StoreContext = createContext<DeveliqStore | undefined>(undefined);
 
 export const getCareerRankForElo = (elo: number): CareerRank => {
   if (elo < 700) return "Beginner";
@@ -134,10 +108,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("develo_state_v1");
+    const saved = localStorage.getItem("develiq_state_v1");
     if (saved) {
       try {
-        setState(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (!parsed.theme) {
+          parsed.theme = "dark";
+        }
+        setState(parsed);
       } catch (e) {
         console.error("Error parsing saved state:", e);
       }
@@ -145,9 +123,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (state.theme === "light") {
+      document.documentElement.classList.add("light");
+      document.documentElement.classList.remove("dark");
+    } else {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+    }
+  }, [state.theme]);
+
   const saveState = (newState: UserProfileState) => {
     setState(newState);
-    localStorage.setItem("develo_state_v1", JSON.stringify(newState));
+    localStorage.setItem("develiq_state_v1", JSON.stringify(newState));
+  };
+
+  const toggleTheme = () => {
+    const nextTheme = state.theme === "light" ? "dark" : "light";
+    saveState({
+      ...state,
+      theme: nextTheme
+    });
+  };
+
+  const loginUser = (name: string, email: string, password?: string) => {
+    saveState({
+      ...state,
+      user: { name, email, password: password || "" },
+    });
+  };
+
+  const updateUser = (name: string, email: string, password?: string) => {
+    saveState({
+      ...state,
+      user: { name, email, password: password || "" },
+    });
+  };
+
+  const logoutUser = () => {
+    saveState({
+      ...state,
+      user: null,
+    });
   };
 
   const addXP = (amount: number) => {
@@ -298,6 +315,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <StoreContext.Provider
       value={{
         state,
+        loginUser,
+        updateUser,
+        logoutUser,
         addXP,
         updateELO,
         addMatch,
@@ -307,6 +327,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         resetState,
         getCareerRank,
         getScoreBreakdown,
+        toggleTheme,
       }}
     >
       {children}

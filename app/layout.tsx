@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DevElo | Gamified Technical Practice & Mock Interview Arena",
+  title: "Develiq | Gamified Technical Practice & Mock Interview Arena",
   description: "Practice realistic developer tasks, coding challenges, system designs, and hackathons with interactive, code-observant AI interviewers. Level up your ELO rating and Offer Readiness.",
 };
 

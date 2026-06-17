@@ -4,12 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import LinkNext from "next/link";
 import Editor from "@monaco-editor/react";
+import AuthGuard from "@/components/AuthGuard";
 import { useStore, MistakeLog } from "@/lib/store";
 import { GeneratedChallenge } from "@/lib/challenges";
 import { AGENT_PROFILES, scanUserCode, getAgentResponse } from "@/lib/agents";
 import { 
   Play, Send, HelpCircle, AlertTriangle, CheckCircle, 
-  Terminal as TermIcon, MessageSquare, Volume2, Award, Clock, ArrowRight, Settings, Info
+  Terminal as TermIcon, MessageSquare, Volume2, Award, Clock, ArrowRight, Settings, Info,
+  Sun, Moon
 } from "lucide-react";
 
 interface ChatMessage {
@@ -18,9 +20,17 @@ interface ChatMessage {
   time: string;
 }
 
-export default function WorkspaceIDE() {
+export default function WorkspaceIDEPage() {
+  return (
+    <AuthGuard>
+      <WorkspaceIDE />
+    </AuthGuard>
+  );
+}
+
+function WorkspaceIDE() {
   const router = useRouter();
-  const { state, addMatch } = useStore();
+  const { state, addMatch, toggleTheme } = useStore();
 
   const [challenge, setChallenge] = useState<GeneratedChallenge | null>(null);
   const [code, setCode] = useState("");
@@ -331,56 +341,62 @@ export default function WorkspaceIDE() {
   }
 
   return (
-    <div className="h-screen bg-[#09090B] text-[#F4F4F5] flex flex-col font-sans overflow-hidden selection:bg-zinc-800 selection:text-white">
+    <div className="h-screen bg-background text-foreground flex flex-col font-sans overflow-hidden selection:bg-zinc-800 selection:text-white">
       {/* IDE Top Status Bar */}
-      <header className="h-12 border-b border-[#27272A] bg-zinc-950 px-6 flex items-center justify-between select-none">
+      <header className="h-12 border-b border-border bg-surface px-6 flex items-center justify-between select-none">
         <div className="flex items-center gap-3">
-          <LinkNext href="/dashboard" className="text-zinc-500 hover:text-white transition-colors text-sm">
+          <LinkNext href="/dashboard" className="text-secondary hover:text-foreground transition-colors text-sm">
             ← Dashboard
           </LinkNext>
-          <span className="text-[#27272A]">|</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-white">
+          <span className="text-border">|</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
             {challenge.mode} • {challenge.level}
           </span>
-          <span className="text-xs text-zinc-500 font-mono">({challenge.language} / {challenge.framework})</span>
+          <span className="text-xs text-secondary font-mono">({challenge.language} / {challenge.framework})</span>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-[#27272A] text-xs font-mono text-zinc-300">
-            <Clock className="w-3.5 h-3.5 text-zinc-400" />
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-inset border border-border text-xs font-mono text-secondary">
+            <Clock className="w-3.5 h-3.5 text-secondary" />
             {formatTime(timer)}
           </div>
           <button 
             onClick={handleSubmit}
-            className="h-8 px-4 rounded-lg bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all flex items-center gap-1.5 shadow-sm"
+            className="h-8 px-4 rounded-lg bg-foreground text-background font-bold text-xs hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
             Submit Solution <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 border border-border rounded-lg bg-background text-foreground hover:bg-elevated transition-colors cursor-pointer"
+            title="Toggle Theme"
+          >
+            {state.theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
         </div>
       </header>
 
       {/* Main Multi-Pane IDE Workspace Layout */}
       <div className="flex-1 flex overflow-hidden">
-        
         {/* Left Panel: Explorer / Problem Instructions */}
-        <div className="w-96 border-r border-[#27272A] bg-[#09090B] flex flex-col select-none">
+        <div className="w-96 border-r border-border bg-background flex flex-col select-none">
           {/* Tab selectors */}
-          <div className="h-10 border-b border-[#27272A] bg-zinc-950/50 flex text-xs font-bold text-zinc-500">
+          <div className="h-10 border-b border-border bg-surface flex text-xs font-bold text-secondary">
             <button 
               onClick={() => setActiveTab("instructions")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "instructions" ? "border-white text-white bg-zinc-900/30" : "border-transparent hover:text-zinc-300"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "instructions" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
             >
               <Info className="w-3.5 h-3.5 mr-1.5" /> Brief
             </button>
             <button 
               onClick={() => setActiveTab("stack")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "stack" ? "border-white text-white bg-zinc-900/30" : "border-transparent hover:text-zinc-300"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "stack" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
             >
               <Settings className="w-3.5 h-3.5 mr-1.5" /> Stack
             </button>
             <button 
               onClick={() => setActiveTab("hints")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "hints" ? "border-white text-white bg-zinc-900/30" : "border-transparent hover:text-zinc-300"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "hints" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
             >
               <HelpCircle className="w-3.5 h-3.5 mr-1.5" /> Hints
             </button>
@@ -390,14 +406,14 @@ export default function WorkspaceIDE() {
           <div className="flex-1 p-6 overflow-y-auto text-sm leading-relaxed flex flex-col gap-6">
             {activeTab === "instructions" && (
               <div className="flex flex-col gap-4">
-                <h2 className="text-lg font-bold text-white tracking-wide border-b border-[#27272A] pb-2">{challenge.title}</h2>
-                <div className="text-xs text-zinc-400 whitespace-pre-wrap">{challenge.description}</div>
+                <h2 className="text-lg font-bold text-foreground tracking-wide border-b border-border pb-2">{challenge.title}</h2>
+                <div className="text-xs text-secondary whitespace-pre-wrap">{challenge.description}</div>
 
                 {/* Constraints */}
                 {challenge.constraints && challenge.constraints.length > 0 && (
                   <div className="mt-4">
-                    <span className="text-xs uppercase font-bold text-zinc-500 tracking-wider block mb-2">Constraints</span>
-                    <ul className="list-disc pl-4 text-xs text-zinc-400 flex flex-col gap-1.5">
+                    <span className="text-xs uppercase font-bold text-secondary tracking-wider block mb-2">Constraints</span>
+                    <ul className="list-disc pl-4 text-xs text-secondary flex flex-col gap-1.5">
                       {challenge.constraints.map((c, idx) => (
                         <li key={idx}>{c}</li>
                       ))}
@@ -408,14 +424,14 @@ export default function WorkspaceIDE() {
                 {/* Examples */}
                 {challenge.examples && challenge.examples.length > 0 && (
                   <div className="mt-4">
-                    <span className="text-xs uppercase font-bold text-zinc-500 tracking-wider block mb-2">Examples</span>
+                    <span className="text-xs uppercase font-bold text-secondary tracking-wider block mb-2">Examples</span>
                     <div className="flex flex-col gap-3 font-mono text-xs">
                       {challenge.examples.map((ex, idx) => (
-                        <div key={idx} className="p-3.5 rounded-lg bg-zinc-900/50 border border-[#27272A]">
-                          <div className="text-zinc-300">Input: <span className="text-zinc-500">{ex.input}</span></div>
-                          <div className="text-zinc-300 mt-1">Output: <span className="text-zinc-500">{ex.output}</span></div>
+                        <div key={idx} className="p-3.5 rounded-lg bg-inset border border-border">
+                          <div className="text-foreground">Input: <span className="text-secondary">{ex.input}</span></div>
+                          <div className="text-foreground mt-1">Output: <span className="text-secondary">{ex.output}</span></div>
                           {ex.explanation && (
-                            <div className="text-zinc-500 italic mt-1.5 opacity-80">// {ex.explanation}</div>
+                            <div className="text-secondary italic mt-1.5 opacity-80">// {ex.explanation}</div>
                           )}
                         </div>
                       ))}
@@ -427,34 +443,34 @@ export default function WorkspaceIDE() {
 
             {activeTab === "stack" && (
               <div className="flex flex-col gap-4 text-xs">
-                <h3 className="text-sm font-bold text-white tracking-wide border-b border-[#27272A] pb-2">Target Stack & Details</h3>
+                <h3 className="text-sm font-bold text-foreground tracking-wide border-b border-border pb-2">Target Stack & Details</h3>
                 <div className="flex flex-col gap-3">
-                  <div className="flex justify-between border-b border-[#27272A] pb-2">
-                    <span className="text-zinc-500">Code Language</span>
-                    <span className="text-white font-mono">{challenge.language}</span>
+                  <div className="flex justify-between border-b border-border pb-2">
+                    <span className="text-secondary">Code Language</span>
+                    <span className="text-foreground font-mono">{challenge.language}</span>
                   </div>
-                  <div className="flex justify-between border-b border-[#27272A] pb-2">
-                    <span className="text-zinc-500">Target Framework</span>
-                    <span className="text-white font-mono">{challenge.framework}</span>
+                  <div className="flex justify-between border-b border-border pb-2">
+                    <span className="text-secondary">Target Framework</span>
+                    <span className="text-foreground font-mono">{challenge.framework}</span>
                   </div>
-                  <div className="flex justify-between border-b border-[#27272A] pb-2">
-                    <span className="text-zinc-500">Benchmark Rating</span>
-                    <span className="text-white font-bold">{challenge.difficultyRating} ELO</span>
+                  <div className="flex justify-between border-b border-border pb-2">
+                    <span className="text-secondary">Benchmark Rating</span>
+                    <span className="text-foreground font-bold">{challenge.difficultyRating} ELO</span>
                   </div>
                 </div>
-                <div className="p-4 rounded-xl bg-zinc-900/30 border border-[#27272A] text-zinc-400 mt-4 leading-relaxed">
-                  <strong className="text-white">Stack Guide:</strong> Implement production-ready validation. Protect against nested scan loops and use memory caches (like Map lookups) to achieve Senior Dev efficiency rankings.
+                <div className="p-4 rounded-xl bg-inset border border-border text-secondary mt-4 leading-relaxed">
+                  <strong className="text-foreground">Stack Guide:</strong> Implement production-ready validation. Protect against nested scan loops and use memory caches (like Map lookups) to achieve Senior Dev efficiency rankings.
                 </div>
               </div>
             )}
 
             {activeTab === "hints" && (
               <div className="flex flex-col gap-4 text-xs">
-                <h3 className="text-sm font-bold text-white tracking-wide border-b border-[#27272A] pb-2">Unlockable Hints</h3>
+                <h3 className="text-sm font-bold text-foreground tracking-wide border-b border-border pb-2">Unlockable Hints</h3>
                 {challenge.hints.map((hint, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border border-[#27272A] bg-zinc-900/30 flex flex-col gap-2">
-                    <span className="font-bold text-white tracking-wider uppercase text-[10px]">Hint #{idx + 1}</span>
-                    <p className="text-zinc-400 leading-relaxed">{hint}</p>
+                  <div key={idx} className="p-4 rounded-xl border border-border bg-inset flex flex-col gap-2">
+                    <span className="font-bold text-foreground tracking-wider uppercase text-[10px]">Hint #{idx + 1}</span>
+                    <p className="text-secondary leading-relaxed">{hint}</p>
                   </div>
                 ))}
               </div>
@@ -465,11 +481,11 @@ export default function WorkspaceIDE() {
         {/* Center Panel: Editor and Output Console */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Monaco Editor Container */}
-          <div className="flex-1 bg-[#09090B] relative">
+          <div className="flex-1 bg-background relative">
             <Editor
               height="100%"
               language={challenge.language.toLowerCase() === "c++" ? "cpp" : challenge.language.toLowerCase()}
-              theme="vs-dark"
+              theme={state.theme === "light" ? "light" : "vs-dark"}
               value={code}
               onChange={handleCodeChange}
               options={{
@@ -485,25 +501,25 @@ export default function WorkspaceIDE() {
           </div>
 
           {/* Bottom Panel: Output Console */}
-          <div className="h-56 border-t border-[#27272A] bg-[#09090B] flex flex-col overflow-hidden select-none">
-            <div className="h-8 border-b border-[#27272A] bg-zinc-950 px-6 flex items-center justify-between text-xs font-bold text-zinc-500">
+          <div className="h-56 border-t border-border bg-background flex flex-col overflow-hidden select-none">
+            <div className="h-8 border-b border-border bg-surface px-6 flex items-center justify-between text-xs font-bold text-secondary">
               <div className="flex items-center gap-2">
-                <TermIcon className="w-3.5 h-3.5 text-zinc-400" /> Output Console
+                <TermIcon className="w-3.5 h-3.5 text-secondary" /> Output Console
               </div>
               <button 
                 onClick={() => setTerminalOutput([])}
-                className="hover:text-white transition-colors text-[10px]"
+                className="hover:text-foreground transition-colors text-[10px] cursor-pointer"
               >
                 Clear Terminal
               </button>
             </div>
             
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-[11px] text-zinc-400 bg-[#09090B] flex flex-col gap-1 select-text">
+            <div className="flex-1 p-4 overflow-y-auto font-mono text-[11px] text-secondary bg-background flex flex-col gap-1 select-text">
               {terminalOutput.length === 0 ? (
                 <span className="italic opacity-60">Terminal idle. Click "Run Code" below to initialize local build sandbox...</span>
               ) : (
                 terminalOutput.map((line, idx) => (
-                  <div key={idx} className={line.startsWith("✗") ? "text-rose-400" : line.startsWith("✓") ? "text-emerald-400" : ""}>
+                  <div key={idx} className={line.startsWith("✗") ? "text-red font-bold" : line.startsWith("✓") ? "text-green font-bold" : ""}>
                     {line}
                   </div>
                 ))
@@ -511,30 +527,30 @@ export default function WorkspaceIDE() {
             </div>
 
             {/* Run button tray */}
-            <div className="h-12 border-t border-[#27272A] bg-zinc-950 px-6 flex items-center justify-end select-none">
+            <div className="h-12 border-t border-border bg-surface px-6 flex items-center justify-end select-none">
               <button 
                 onClick={handleRunCode}
-                className="px-4 py-1.5 rounded-lg border border-[#27272A] bg-zinc-900 text-white font-bold text-xs hover:bg-zinc-800 transition-all flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-lg border border-border bg-background text-foreground font-bold text-xs hover:bg-elevated transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Play className="w-3 h-3 text-white fill-white" /> Run Code
+                <Play className="w-3 h-3 text-foreground fill-current" /> Run Code
               </button>
             </div>
           </div>
         </div>
 
         {/* Right Panel: Chat Console and Test Cases */}
-        <div className="w-96 border-l border-[#27272A] bg-[#09090B] flex flex-col overflow-hidden">
+        <div className="w-96 border-l border-border bg-background flex flex-col overflow-hidden">
           {/* Right tab selectors */}
-          <div className="h-10 border-b border-[#27272A] bg-zinc-950/50 flex text-xs font-bold text-zinc-500 select-none">
+          <div className="h-10 border-b border-border bg-surface flex text-xs font-bold text-secondary select-none">
             <button 
               onClick={() => setActiveRightTab("chat")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "chat" ? "border-white text-white bg-zinc-900/30" : "border-transparent hover:text-zinc-300"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "chat" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
             >
               <MessageSquare className="w-3.5 h-3.5 mr-1.5" /> AI Interviewer Chat
             </button>
             <button 
               onClick={() => setActiveRightTab("tests")}
-              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "tests" ? "border-white text-white bg-zinc-900/30" : "border-transparent hover:text-zinc-300"}`}
+              className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "tests" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground"}`}
             >
               <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Test Suite
             </button>
@@ -545,83 +561,83 @@ export default function WorkspaceIDE() {
             
             {activeRightTab === "chat" && (
               <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Agent Selector Header */}
-                <div className="p-3 border-b border-[#27272A] bg-zinc-950/30 flex gap-1.5 overflow-x-auto select-none no-scrollbar">
-                  {Object.keys(AGENT_PROFILES)
-                    .filter(a => a !== "Coach" && a !== "Test Runner" && (a !== "Assistant" || aiAssistantActive))
-                    .map((agentName) => {
-                      const prof = AGENT_PROFILES[agentName];
-                      return (
-                        <button
-                          key={agentName}
-                          onClick={() => setSelectedAgent(agentName as any)}
-                          className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-wider transition-all whitespace-nowrap ${selectedAgent === agentName ? "border-white text-white bg-zinc-800" : "border-[#27272A] text-zinc-500 hover:border-zinc-600"}`}
-                        >
-                          {prof.avatar} {prof.name.split(" ")[0]}
-                        </button>
-                      );
-                    })}
-                </div>
+            {/* Agent Selector Header */}
+            <div className="p-3 border-b border-border bg-surface flex gap-1.5 overflow-x-auto select-none no-scrollbar">
+              {Object.keys(AGENT_PROFILES)
+                .filter(a => a !== "Coach" && a !== "Test Runner" && (a !== "Assistant" || aiAssistantActive))
+                .map((agentName) => {
+                  const prof = AGENT_PROFILES[agentName];
+                  return (
+                    <button
+                      key={agentName}
+                      onClick={() => setSelectedAgent(agentName as any)}
+                      className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
+                    >
+                      {prof.avatar} {prof.name.split(" ")[0]}
+                    </button>
+                  );
+                })}
+            </div>
 
-                {/* Chat Message Stream */}
-                <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-[#09090B] select-text">
-                  {chatMessages
-                    .filter(msg => msg.sender === "User" || AGENT_PROFILES[msg.sender]?.name.startsWith(AGENT_PROFILES[selectedAgent]?.name.split(" ")[0]))
-                    .map((msg, idx) => {
-                      const isUser = msg.sender === "User";
-                      const prof = !isUser ? AGENT_PROFILES[msg.sender] : null;
+            {/* Chat Message Stream */}
+            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-background select-text">
+              {chatMessages
+                .filter(msg => msg.sender === "User" || AGENT_PROFILES[msg.sender]?.name.startsWith(AGENT_PROFILES[selectedAgent]?.name.split(" ")[0]))
+                .map((msg, idx) => {
+                  const isUser = msg.sender === "User";
+                  const prof = !isUser ? AGENT_PROFILES[msg.sender] : null;
 
-                      return (
-                        <div key={idx} className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
-                          <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-zinc-500 select-none">
-                            {!isUser && <span>{prof?.avatar} {prof?.name}</span>}
-                            {isUser && <span>User</span>}
-                            <span>•</span>
-                            <span>{msg.time}</span>
-                          </div>
-                          <div className={`p-3.5 rounded-xl text-xs leading-relaxed max-w-[85%] border ${isUser ? "bg-white border-white text-black rounded-tr-none font-medium" : "bg-zinc-900 border-[#27272A] text-zinc-300 rounded-tl-none font-sans"}`}>
-                            {msg.text}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
+                  return (
+                    <div key={idx} className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
+                      <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-secondary select-none">
+                        {!isUser && <span>{prof?.avatar} {prof?.name}</span>}
+                        {isUser && <span>User</span>}
+                        <span>•</span>
+                        <span>{msg.time}</span>
+                      </div>
+                      <div className={`p-3.5 rounded-xl text-xs leading-relaxed max-w-[85%] border ${isUser ? "bg-foreground border-foreground text-background rounded-tr-none font-medium" : "bg-surface border-border text-foreground rounded-tl-none font-sans"}`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
 
-                {/* Text box input drawer */}
-                <div className="p-3 border-t border-[#27272A] bg-zinc-950 flex gap-2 select-none">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                    placeholder={`Reply to ${AGENT_PROFILES[selectedAgent]?.name}...`}
-                    className="flex-1 bg-[#09090B] border border-[#27272A] rounded-lg px-3.5 py-2 text-xs text-white placeholder-zinc-600 focus:border-zinc-500 outline-none transition-colors"
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    className="w-8 h-8 rounded-lg bg-white hover:bg-zinc-200 transition-colors flex items-center justify-center text-black"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+            {/* Text box input drawer */}
+            <div className="p-3 border-t border-border bg-surface flex gap-2 select-none">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                placeholder={`Reply to ${AGENT_PROFILES[selectedAgent]?.name}...`}
+                className="flex-1 bg-background border border-border rounded-lg px-3.5 py-2 text-xs text-foreground placeholder-muted focus:border-border-muted outline-none transition-colors"
+              />
+              <button
+                onClick={handleSendMessage}
+                className="w-8 h-8 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
               </div>
             )}
 
             {activeRightTab === "tests" && (
               <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
-                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 select-none">Assertions Results</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-secondary select-none">Assertions Results</span>
                 <div className="flex flex-col gap-3">
                   {testResults.map((tc, idx) => (
-                    <div key={idx} className="p-4 rounded-xl border border-[#27272A] bg-zinc-900/30 flex flex-col gap-2">
+                    <div key={idx} className="p-4 rounded-xl border border-border bg-inset flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-zinc-400">TC #{idx + 1}: {tc.name}</span>
-                        {tc.status === "idle" && <span className="text-xs text-zinc-600 font-semibold select-none">Idle</span>}
-                        {tc.status === "running" && <span className="text-xs text-zinc-400 font-semibold animate-pulse select-none">Running...</span>}
-                        {tc.status === "passed" && <span className="text-xs text-emerald-400 font-semibold select-none">✓ Passed</span>}
-                        {tc.status === "failed" && <span className="text-xs text-rose-400 font-semibold select-none">✗ Failed</span>}
+                        <span className="font-mono text-[10px] text-secondary">TC #{idx + 1}: {tc.name}</span>
+                        {tc.status === "idle" && <span className="text-xs text-secondary font-semibold select-none">Idle</span>}
+                        {tc.status === "running" && <span className="text-xs text-secondary font-semibold animate-pulse select-none">Running...</span>}
+                        {tc.status === "passed" && <span className="text-xs text-green font-semibold select-none">✓ Passed</span>}
+                        {tc.status === "failed" && <span className="text-xs text-red font-semibold select-none">✗ Failed</span>}
                       </div>
                       {tc.output && (
-                        <div className="p-2.5 rounded-lg bg-[#09090B] font-mono text-[10px] text-zinc-500 select-text border border-[#27272A]">
+                        <div className="p-2.5 rounded-lg bg-background font-mono text-[10px] text-secondary select-text border border-border">
                           {tc.output}
                         </div>
                       )}

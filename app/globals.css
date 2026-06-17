@@ -35,6 +35,41 @@
   --scrollbar-thumb-hover: #272E38;
 }
 
+.light {
+  --bg-primary: #FFFFFF;
+  --bg-surface: #F8F9FA;
+  --bg-elevated: #F1F3F5;
+  --bg-inset: #FAFAFA;
+
+  --border-default: #E1E4E8;
+  --border-muted: #D1D5DA;
+  --border-active: #0969DA;
+
+  --text-primary: #000000;
+  --text-secondary: #586069;
+  --text-muted: #6A737D;
+  --text-link: #0969DA;
+
+  --accent-green: #28A745;
+  --accent-red: #D73A49;
+  --accent-yellow: #B08800;
+  --accent-blue: #0366D6;
+
+  /* IDE Syntax Highlight Colors (IntelliJ / Github Light) */
+  --syntax-keyword: #D73A49;   /* Keyword Red */
+  --syntax-string: #032F62;    /* String Dark Blue */
+  --syntax-annotation: #B08800; /* Type/Annotation Brown-yellow */
+  --syntax-number: #005CC5;    /* Variable/Number Blue */
+  --syntax-type: #24292E;      /* Class/Type Dark Gray */
+  --syntax-method: #6F42C1;    /* Function/Method Purple */
+  --syntax-comment: #6A737D;   /* Comment Gray */
+  --syntax-class: #24292E;
+
+  --scrollbar-bg: #FFFFFF;
+  --scrollbar-thumb: #E1E4E8;
+  --scrollbar-thumb-hover: #D1D5DA;
+}
+
 @theme inline {
   --color-background: var(--bg-primary);
   --color-foreground: var(--text-primary);
@@ -89,16 +124,16 @@ body {
 
 /* Feature card — Solid dark charcoal with fine border (GitHub Copilot style) */
 .feature-card {
-  background: #0B0E14;
-  border: 1px solid #1A1F26;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 2.25rem 2rem;
   transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
 }
 .feature-card:hover {
-  border-color: #272E38;
+  border-color: var(--border-muted);
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
 }
 
 /* Syntax highlight utility classes */
@@ -141,9 +176,9 @@ body {
 }
 
 /* Monaco Editor overrides */
-.monaco-editor, .monaco-editor .margin {
+html:not(.light) .monaco-editor, html:not(.light) .monaco-editor .margin {
   background-color: #0D1117 !important;
 }
-.monaco-editor-background {
+html:not(.light) .monaco-editor-background {
   background-color: #0D1117 !important;
 }
