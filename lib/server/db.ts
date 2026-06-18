@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import os from "os";
 
 export interface UserProgress {
   xp: number;
@@ -28,7 +29,9 @@ interface DatabaseShape {
   users: StoredUser[];
 }
 
-const dataDir = path.join(process.cwd(), ".data");
+const dataDir = process.env.NODE_ENV === "production"
+  ? path.join(os.tmpdir(), "develiq-data")
+  : path.join(process.cwd(), ".data");
 const dbPath = path.join(dataDir, "users.json");
 
 export const defaultProgress = (): UserProgress => ({
