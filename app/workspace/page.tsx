@@ -8,8 +8,8 @@ import AuthGuard from "@/components/AuthGuard";
 import { useStore, MistakeLog } from "@/lib/store";
 import { GeneratedChallenge } from "@/lib/challenges";
 import { AGENT_PROFILES, scanUserCode, getAgentResponse } from "@/lib/agents";
-import { 
-  Play, Send, HelpCircle, AlertTriangle, CheckCircle, 
+import {
+  Play, Send, HelpCircle, AlertTriangle, CheckCircle,
   Terminal as TermIcon, MessageSquare, Volume2, Award, Clock, ArrowRight, Settings, Info,
   Sun, Moon
 } from "lucide-react";
@@ -27,6 +27,28 @@ export default function WorkspaceIDEPage() {
     </AuthGuard>
   );
 }
+
+const checkFuncNamePresence = (code: string, funcName: string | undefined, lang: string): boolean => {
+  if (!funcName) return true;
+  const codeLower = code.toLowerCase();
+  const funcNameLower = funcName.toLowerCase();
+
+  // Convert camelCase to snake_case for Python
+  const snakeName = funcName.replace(/[A-Z]/g, (letter: string) => `_${letter.toLowerCase()}`).toLowerCase();
+
+  if (lang === "Python") {
+    return codeLower.includes(`def ${funcNameLower}`) || codeLower.includes(`def ${snakeName}`);
+  } else if (lang === "JavaScript" || lang === "TypeScript") {
+    return codeLower.includes(`function ${funcNameLower}`) ||
+      codeLower.includes(`${funcNameLower}:`) ||
+      codeLower.includes(`${funcNameLower} =`) ||
+      codeLower.includes(`class ${funcNameLower}`) ||
+      codeLower.includes(`export function ${funcNameLower}`);
+  } else if (lang === "Java") {
+    return codeLower.includes(`${funcNameLower}(`);
+  }
+  return true;
+};
 
 const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) => {
   const codeTrimmed = code.trim();
@@ -49,10 +71,21 @@ const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) =
   // 2. Strict language evaluation
   const codeLower = code.toLowerCase();
 
+  // Validate that the expected function or class name exists in the user's code
+  if (challenge.funcName && !checkFuncNamePresence(code, challenge.funcName, lang)) {
+    const expectedName = lang === "Python"
+      ? challenge.funcName.replace(/[A-Z]/g, (letter: string) => `_${letter.toLowerCase()}`)
+      : challenge.funcName;
+    return {
+      passed: false,
+      output: `AssertionError: The expected function or class '${expectedName}' was not found in your code. Please make sure you are implementing the correct entrypoint.`
+    };
+  }
+
   // 3. For JS/TS, try executing algorithms that are purely functional
-  const isPureAlg = challenge.category === "Algorithms" && 
-                     !["reverse-linked-list", "invert-binary-tree", "validate-bst", "number-of-islands", "lowest-common-ancestor", "binary-tree-level-order", "linked-list-cycle", "merge-two-sorted-lists", "merge-k-sorted-lists", "serialize-deserialize-tree"].includes(challenge.id);
-  
+  const isPureAlg = challenge.category === "Algorithms" &&
+    !["reverse-linked-list", "invert-binary-tree", "validate-bst", "number-of-islands", "lowest-common-ancestor", "binary-tree-level-order", "linked-list-cycle", "merge-two-sorted-lists", "merge-k-sorted-lists", "serialize-deserialize-tree", "lru-cache"].includes(challenge.id);
+
   if ((lang === "JavaScript" || lang === "TypeScript") && isPureAlg) {
     try {
       // Clean up typescript definitions
@@ -64,22 +97,22 @@ const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) =
           .replace(/export\s+/g, "")
           .replace(/import\s+[^;]+;/g, "");
       }
-      
+
       // Determine what call expression to run
       let callExpr = tc.input.trim();
       // If the input doesn't start with the function name, wrap it
       if (!callExpr.startsWith(challenge.funcName)) {
         callExpr = `${challenge.funcName}(${callExpr})`;
       }
-      
+
       // Execute
       const runner = new Function(`
         ${cleanCode}
         return ${callExpr};
       `);
-      
+
       const result = runner();
-      
+
       // Normalize and compare actual vs expected
       const expectedNormalized = tc.expected.trim().replace(/\s+/g, "");
       let actualNormalized = "";
@@ -88,7 +121,7 @@ const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) =
       } else {
         actualNormalized = String(result).trim().replace(/\s+/g, "");
       }
-      
+
       // Also check if result is string but expected has single/double quotes around it
       let expClean = expectedNormalized;
       if ((expClean.startsWith("'") && expClean.endsWith("'")) || (expClean.startsWith("\"") && expClean.endsWith("\""))) {
@@ -98,13 +131,13 @@ const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) =
       if ((actClean.startsWith("'") && actClean.endsWith("'")) || (actClean.startsWith("\"") && actClean.endsWith("\""))) {
         actClean = actClean.slice(1, -1);
       }
-      
+
       if (actClean === expClean || actualNormalized === expectedNormalized) {
         return { passed: true, output: `Verification passed. Output: ${JSON.stringify(result)}` };
       } else {
-        return { 
-          passed: false, 
-          output: `AssertionError: Expected '${tc.expected}', got '${result !== undefined ? JSON.stringify(result) : "undefined"}'` 
+        return {
+          passed: false,
+          output: `AssertionError: Expected '${tc.expected}', got '${result !== undefined ? JSON.stringify(result) : "undefined"}'`
         };
       }
     } catch (err: any) {
@@ -114,7 +147,7 @@ const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) =
 
   // 4. Strict Heuristics checking for all other templates/languages
   // We can write custom rules based on the challenge ID to make sure they solved it!
-  
+
   // Rule A: Hardcoding check
   // If their code is very short (e.g. less than starter code + 20 chars) and does not contain logic expressions
   if (code.length < challenge.starterCode.length + 15) {
@@ -123,6 +156,36 @@ const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) =
 
   // Rule B: specific challenge verification checks
   switch (challenge.id) {
+    case "hello-develiq":
+      if (!codeLower.includes("hello") || !codeLower.includes("develiq")) {
+        return { passed: false, output: "AssertionError: Greet message incorrect. Your output must contain 'Hello, Develiq!'." };
+      }
+      break;
+
+    case "sum-of-two":
+      if (!code.includes("+") && !codeLower.includes("sum")) {
+        return { passed: false, output: "AssertionError: Sum expression missing. You must compute the sum of the inputs." };
+      }
+      break;
+
+    case "even-or-odd":
+      if (!code.includes("%") && !codeLower.includes("even") && !codeLower.includes("odd")) {
+        return { passed: false, output: "AssertionError: Modulo checker missing. You must check if the number is even or odd." };
+      }
+      break;
+
+    case "find-max":
+      if (!codeLower.includes("max") && !codeLower.includes(">") && !codeLower.includes("for") && !codeLower.includes("while")) {
+        return { passed: false, output: "AssertionError: Maximum finder logic missing. You must find the maximum value." };
+      }
+      break;
+
+    case "lru-cache":
+      if (!codeLower.includes("get") || !codeLower.includes("put") || (!codeLower.includes("map") && !codeLower.includes("ordereddict") && !codeLower.includes("capacity"))) {
+        return { passed: false, output: "AssertionError: Cache operations missing. Make sure your LRUCache class implements 'get', 'put', and tracks cache capacity." };
+      }
+      break;
+
     // Debugging off-by-one binary search
     case "fix-binary-search":
       if (!code.includes("<=") && !code.includes("l <= r") && !code.includes("low <= high")) {
@@ -289,9 +352,9 @@ function WorkspaceIDE() {
   const [timer, setTimer] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<"Interviewer" | "Bug Hunter" | "Reviewer" | "Assistant">("Interviewer");
-  const [testResults, setTestResults] = useState<{ id: string; name: string; status: "idle" | "running" | "passed" | "failed"; output?: string }[]>([]);
+  const [testResults, setTestResults] = useState<{ id: string; name: string; status: "idle" | "running" | "passed" | "failed"; output?: string; isHidden?: boolean }[]>([]);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
-  
+
   // Rules configuration loaded from setup
   const [aiAssistantActive, setAiAssistantActive] = useState(true);
   const [voiceActive, setVoiceActive] = useState(false);
@@ -577,19 +640,19 @@ function WorkspaceIDE() {
         const line = d.line || 1;
 
         let glyphClass = "monaco-mistake-glyph";
-        let inlineClass = state.theme === "light" 
-          ? "bg-red-50 text-red-700 font-semibold" 
+        let inlineClass = state.theme === "light"
+          ? "bg-red-50 text-red-700 font-semibold"
           : "bg-red-950/20 text-rose-400";
 
         if (isStrong) {
           glyphClass = "monaco-strong-move-glyph";
-          inlineClass = state.theme === "light" 
-            ? "bg-blue-50 text-blue-800 font-semibold" 
+          inlineClass = state.theme === "light"
+            ? "bg-blue-50 text-blue-800 font-semibold"
             : "bg-indigo-950/20 text-indigo-400";
         } else if (isExcellent) {
           glyphClass = "monaco-excellent-move-glyph";
-          inlineClass = state.theme === "light" 
-            ? "bg-green-50 text-green-800 font-semibold" 
+          inlineClass = state.theme === "light"
+            ? "bg-green-50 text-green-800 font-semibold"
             : "bg-emerald-950/20 text-emerald-400";
         }
 
@@ -641,7 +704,8 @@ function WorkspaceIDE() {
         setTestResults(parsed.testCases.map(tc => ({
           id: tc.id,
           name: tc.input,
-          status: "idle"
+          status: "idle",
+          isHidden: tc.isHidden
         })));
 
         // Initial welcome message from named AI Interviewer
@@ -652,7 +716,7 @@ function WorkspaceIDE() {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
         ]);
-        
+
         // Speak initial welcome if voice enabled
         if (voice) {
           speak(`Welcome! I am Hardcore Harry. Today we are doing a level ${parsed.level} practice challenge for the ${parsed.role} role. Please explain your strategy before coding.`);
@@ -695,21 +759,21 @@ function WorkspaceIDE() {
     // Local code heuristics scanner (O(N^2) loops, keys lookup, etc.)
     const codeLogs = scanUserCode(val, challenge?.language || "JavaScript");
     setDiagnostics(codeLogs);
-    
+
     // Check if line-count triggers are matched (e.g. prompt Interviewer when they write certain lines of code)
     const lineCount = val.split("\n").length;
-    
+
     challenge?.triggers.forEach(trig => {
       if (trig.condition === "lines" && typeof trig.value === "number") {
         if (lineCount >= trig.value && !triggeredLines.current[trig.value]) {
           triggeredLines.current[trig.value] = true;
-          
+
           const newMsg: ChatMessage = {
             sender: trig.agent as any,
             text: trig.message,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
-          
+
           setChatMessages(prev => [...prev, newMsg]);
           setSelectedAgent(trig.agent as any);
           setActiveRightTab("chat");
@@ -759,7 +823,7 @@ function WorkspaceIDE() {
 
     // Simulate Agent typing response
     const activeAgent = selectedAgent;
-    
+
     const replyText = await getAgentResponse(
       activeAgent,
       inputMessage,
@@ -775,7 +839,7 @@ function WorkspaceIDE() {
     };
 
     setChatMessages(prev => [...prev, replyMsg]);
-    
+
     // Increment Assistant usage count if they ask copilot for help
     if (activeAgent === "Assistant") {
       setCopilotUsageCount(prev => prev + 1);
@@ -786,6 +850,7 @@ function WorkspaceIDE() {
     }
   };
 
+  // Compile and run code simulation
   // Compile and run code simulation
   const handleRunCode = () => {
     if (!challenge) return;
@@ -798,62 +863,65 @@ function WorkspaceIDE() {
       `> Executing visible test cases in local runner sandbox...`
     ]);
 
+    // Mark all tests as running
     setTestResults(prev => prev.map(tc => ({ ...tc, status: "running" })));
 
     setTimeout(() => {
-      // Dynamic local compiler assertions - scans code contents for solutions
-      const codeLower = code.toLowerCase();
-      const hasGuards = codeLower.includes("if") && (codeLower.includes("null") || codeLower.includes("array") || codeLower.includes("records") || codeLower.includes("len") || codeLower.includes("empty"));
-      const isCorrectSolution = codeLower.includes("filter") || codeLower.includes("def") || codeLower.includes("select") || codeLower.length > challenge.starterCode.length + 30;
-
-      setTestResults(prev => prev.map((tc, idx) => {
-        let passed = true;
-        let outputMessage = "Verification passed successfully.";
-
-        // TC2 is empty array guard
-        if (tc.id === "tc2" && !hasGuards) {
-          passed = false;
-          outputMessage = "AssertionError: Expected empty array, got TypeError: Cannot read properties of undefined (reading 'filter')";
-        }
-
-        if (tc.id === "tc1" && !isCorrectSolution) {
-          passed = false;
-          outputMessage = "AssertionError: Expected sorted collection, got un-modified container";
-        }
-
+      // Evaluate each test case strictly. Explicitly type the results array to satisfy the testResults state shape.
+      const results: {
+        id: string;
+        name: string;
+        status: "passed" | "failed";
+        output?: string;
+        isHidden?: boolean;
+      }[] = challenge.testCases.map(tc => {
+        const res = evaluateUserCode(code, challenge, challenge.language, tc);
+        // Narrow the status type to the allowed union and include hidden flag
+        const status: "passed" | "failed" = res.passed ? "passed" : "failed";
         return {
-          ...tc,
-          status: passed ? "passed" : "failed",
-          output: outputMessage
+          id: tc.id,
+          name: tc.input,
+          status,
+          output: res.output,
+          // Preserve the hidden flag for each test case to satisfy state shape
+          isHidden: tc.isHidden,
         };
-      }));
+      });
 
-      // Trigger Bug Hunter interruption on failed runs
-      if (!hasGuards && !hasTriggeredFirstRun.current) {
+      // Update results
+      setTestResults(results);
+
+      // Detect runtime errors (missing guards) and trigger Bug Hunter once
+      const runtimeError = results.some(r => r.output?.toLowerCase().includes("typeerror") || r.output?.toLowerCase().includes("undefined"));
+      if (runtimeError && !hasTriggeredFirstRun.current) {
         hasTriggeredFirstRun.current = true;
-        
-        const bugMsg = "Aha! Edge-Case Ethan here. Our test runner crashed on malformed array inputs. The compiler threw a crash exception because the records parameter is undefined in line 4. Fix this safety block immediately!";
-        setChatMessages(prev => [
-          ...prev,
-          {
-            sender: "Bug Hunter",
-            text: bugMsg,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
+        const bugMsg =
+          "Aha! Edge‑Case Ethan here. Our test runner crashed on malformed inputs. " +
+          "The compiler threw a crash exception because of a missing boundary check. Fix this safety block immediately!";
+        setChatMessages(prev => [...prev, { sender: "Bug Hunter", text: bugMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
         setSelectedAgent("Bug Hunter");
         setActiveRightTab("chat");
-        
         if (voiceActive) speak(bugMsg);
       }
 
-      setTerminalOutput(prev => [
-        ...prev,
-        `✓ TC1 (visible): passed.`,
-        hasGuards ? `✓ TC2 (visible): passed.` : `✗ TC2 (visible): failed with runtime exception.`,
-        `✓ TC3 (hidden): completed.`,
-        `[Result]: Code executed. Check the Test Case grid for details.`
-      ]);
+      // Build terminal summary: hide details for hidden cases
+      setTerminalOutput(prev => {
+        const lines = [...prev];
+        results.forEach((res, idx) => {
+          const tc = challenge.testCases[idx];
+          const label = `TC${idx + 1}`;
+          const visibility = tc.isHidden ? "hidden" : "visible";
+          if (res.status === "passed") {
+            lines.push(`✓ ${label} (${visibility}): passed.`);
+          } else if (tc.isHidden) {
+            lines.push(`✗ ${label} (${visibility}): failed.`);
+          } else {
+            lines.push(`✗ ${label} (${visibility}): failed: ${res.output}`);
+          }
+        });
+        lines.push(`[Result]: Code executed. Check the Test Case grid for details.`);
+        return lines;
+      });
 
       setActiveRightTab("tests");
     }, 1200);
@@ -862,20 +930,16 @@ function WorkspaceIDE() {
   // Submit Challenge
   const handleSubmit = () => {
     if (!challenge) return;
-
-    // Scan the user's code to determine the Chess mistake logs
     const mistakeLogs = scanUserCode(code, challenge.language);
-    
-    // Determine actual score based on compiler checks and mistakes
-    const hasGuards = code.toLowerCase().includes("if");
-    const failedTests = !hasGuards ? 2 : 0;
-    const passedCount = challenge.testCases.length - failedTests;
+
+    // Evaluate test cases again to determine pass count
+    const results = challenge.testCases.map(tc => evaluateUserCode(code, challenge, challenge.language, tc));
+    const passedCount = results.filter(r => r.passed).length;
     const isSuccess = passedCount === challenge.testCases.length;
 
-    // Dynamic coach text
-    const summaryFeedback = isSuccess 
-      ? `Phenomenal performance! You handled validations beautifully.`
-      : `Decent work, but your solution missed empty input checks. Review Clean-Code Carl's annotations to improve.`;
+    const summaryFeedback = isSuccess
+      ? "Phenomenal performance! You handled validations beautifully."
+      : "Good attempt, but your solution did not pass all the test cases. Double‑check your logic and edge case handling.";
 
     const matchHistoryItem = {
       id: `match-${Date.now()}`,
@@ -896,13 +960,13 @@ function WorkspaceIDE() {
       ratingAfter: state.rating
     };
 
-    // Commit to persistent localStorage
     addMatch(matchHistoryItem);
-
-    // Store temporary item to render immediately on review screen
     sessionStorage.setItem("last_match_review", JSON.stringify(matchHistoryItem));
     router.push("/review");
   };
+
+
+  // Submit Challenge
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -932,7 +996,7 @@ function WorkspaceIDE() {
         <div className="flex items-center gap-4">
           {/* Zoom controls to increase/decrease font size */}
           <div className="flex items-center gap-1.5 border border-border rounded-lg bg-inset px-2.5 py-1 select-none">
-            <button 
+            <button
               onClick={() => setFontSize(Math.max(12, fontSize - 1))}
               className="text-secondary hover:text-foreground text-sm font-bold px-1.5 cursor-pointer transition-colors"
               title="Decrease Font Size"
@@ -940,7 +1004,7 @@ function WorkspaceIDE() {
               A-
             </button>
             <span className="text-secondary text-xs font-mono border-x border-border px-2 select-none">{fontSize}px</span>
-            <button 
+            <button
               onClick={() => setFontSize(Math.min(22, fontSize + 1))}
               className="text-secondary hover:text-foreground text-sm font-bold px-1.5 cursor-pointer transition-colors"
               title="Increase Font Size"
@@ -953,13 +1017,13 @@ function WorkspaceIDE() {
             <Clock className="w-4 h-4 text-foreground" />
             {formatTime(timer)}
           </div>
-          <button 
+          <button
             onClick={handleRunCode}
             className="h-11 px-6 rounded-xl border border-emerald-500/80 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 font-extrabold text-sm transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
             <Play className="w-4 h-4 text-emerald-600 dark:text-emerald-400 fill-current" /> Run Code
           </button>
-          <button 
+          <button
             onClick={handleSubmit}
             className="h-11 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition-all flex items-center gap-2 shadow-md cursor-pointer"
           >
@@ -981,19 +1045,19 @@ function WorkspaceIDE() {
         <div className="w-[450px] shrink-0 border-r border-border bg-background flex flex-col select-none">
           {/* Tab selectors */}
           <div className="h-11.5 border-b border-border bg-surface flex text-base font-bold text-secondary">
-            <button 
+            <button
               onClick={() => setActiveTab("instructions")}
               className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "instructions" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
               <Info className="w-4 h-4 mr-1.5" /> Brief
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab("stack")}
               className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "stack" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
               <Settings className="w-4 h-4 mr-1.5" /> Stack
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab("hints")}
               className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeTab === "hints" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
@@ -1127,13 +1191,13 @@ function WorkspaceIDE() {
                   onClick={() => setConsoleTab("problems")}
                   className={`h-full flex items-center gap-1.5 border-b-2 px-1 transition-all ${consoleTab === "problems" ? "border-foreground text-foreground bg-elevated/10" : "border-transparent hover:text-foreground cursor-pointer"}`}
                 >
-                  <AlertTriangle className={`w-4 h-4 ${diagnostics.filter(d => d.type !== "strong-move" && d.type !== "excellent-tradeoff").length > 0 ? "text-red animate-pulse" : "text-secondary"}`} /> 
+                  <AlertTriangle className={`w-4 h-4 ${diagnostics.filter(d => d.type !== "strong-move" && d.type !== "excellent-tradeoff").length > 0 ? "text-red animate-pulse" : "text-secondary"}`} />
                   Problems ({diagnostics.length})
                 </button>
               </div>
-              
+
               {consoleTab === "terminal" ? (
-                <button 
+                <button
                   onClick={() => setTerminalOutput([])}
                   className="hover:text-foreground transition-colors text-xs cursor-pointer font-sans"
                 >
@@ -1141,7 +1205,7 @@ function WorkspaceIDE() {
                 </button>
               ) : null}
             </div>
-            
+
             <div className="flex-1 p-4 overflow-y-auto bg-background select-text">
               {consoleTab === "terminal" ? (
                 <div className="font-mono text-xs text-secondary flex flex-col gap-1.5">
@@ -1163,13 +1227,12 @@ function WorkspaceIDE() {
                     diagnostics.map((d, idx) => {
                       const isGoodMove = d.type === "strong-move" || d.type === "excellent-tradeoff";
                       return (
-                        <div 
-                          key={idx} 
-                          className={`p-3 rounded-lg border flex gap-3 leading-relaxed transition-all ${
-                            isGoodMove 
-                              ? "bg-indigo-950/20 border-indigo-900/40 text-indigo-400" 
-                              : "bg-red-950/20 border-red-900/40 text-rose-400"
-                          }`}
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-lg border flex gap-3 leading-relaxed transition-all ${isGoodMove
+                            ? "bg-indigo-950/20 border-indigo-900/40 text-indigo-400"
+                            : "bg-red-950/20 border-red-900/40 text-rose-400"
+                            }`}
                         >
                           <div className="mt-0.5 shrink-0">
                             {isGoodMove ? <Award className="w-4.5 h-4.5" /> : <AlertTriangle className="w-4.5 h-4.5" />}
@@ -1195,15 +1258,15 @@ function WorkspaceIDE() {
                 <span className="w-2.5 h-2.5 rounded-full bg-green animate-pulse" />
                 <span>local-sandbox-node: v19.x</span>
               </div>
-              
+
               <div className="flex gap-2.5">
-                <button 
+                <button
                   onClick={handleFormatCode}
                   className="px-6 py-2.5 rounded-xl border border-border bg-background text-foreground font-extrabold text-sm hover:bg-elevated transition-all flex items-center gap-1.5 cursor-pointer font-sans shadow-sm"
                 >
                   Format Code
                 </button>
-                <button 
+                <button
                   onClick={handleRunCode}
                   className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition-all flex items-center gap-2 cursor-pointer font-sans shadow-md"
                 >
@@ -1218,13 +1281,13 @@ function WorkspaceIDE() {
         <div className="w-[430px] shrink-0 border-l border-border bg-background flex flex-col overflow-hidden">
           {/* Right tab selectors */}
           <div className="h-11.5 border-b border-border bg-surface flex text-base font-bold text-secondary select-none">
-            <button 
+            <button
               onClick={() => setActiveRightTab("chat")}
               className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "chat" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
               <MessageSquare className="w-4 h-4 mr-1.5" /> AI Interviewer Chat
             </button>
-            <button 
+            <button
               onClick={() => setActiveRightTab("tests")}
               className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "tests" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
@@ -1234,68 +1297,68 @@ function WorkspaceIDE() {
 
           {/* Right Panel Body */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            
+
             {activeRightTab === "chat" && (
               <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Agent Selector Header */}
-            <div className="p-3 border-b border-border bg-surface flex gap-1.5 overflow-x-auto select-none no-scrollbar">
-              {Object.keys(AGENT_PROFILES)
-                .filter(a => a !== "Coach" && a !== "Test Runner" && (a !== "Assistant" || aiAssistantActive))
-                .map((agentName) => {
-                  const prof = AGENT_PROFILES[agentName];
-                  return (
-                    <button
-                      key={agentName}
-                      onClick={() => setSelectedAgent(agentName as any)}
-                      className={`px-3.5 py-1.5 rounded-lg border text-sm font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
-                    >
-                      {prof.avatar} {prof.name.split(" ")[0]}
-                    </button>
-                  );
-                })}
-            </div>
+                {/* Agent Selector Header */}
+                <div className="p-3 border-b border-border bg-surface flex gap-1.5 overflow-x-auto select-none no-scrollbar">
+                  {Object.keys(AGENT_PROFILES)
+                    .filter(a => a !== "Coach" && a !== "Test Runner" && (a !== "Assistant" || aiAssistantActive))
+                    .map((agentName) => {
+                      const prof = AGENT_PROFILES[agentName];
+                      return (
+                        <button
+                          key={agentName}
+                          onClick={() => setSelectedAgent(agentName as any)}
+                          className={`px-3.5 py-1.5 rounded-lg border text-sm font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
+                        >
+                          {prof.avatar} {prof.name.split(" ")[0]}
+                        </button>
+                      );
+                    })}
+                </div>
 
-            {/* Chat Message Stream */}
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-background select-text">
-              {chatMessages
-                .filter(msg => msg.sender === "User" || AGENT_PROFILES[msg.sender]?.name.startsWith(AGENT_PROFILES[selectedAgent]?.name.split(" ")[0]))
-                .map((msg, idx) => {
-                  const isUser = msg.sender === "User";
-                  const prof = !isUser ? AGENT_PROFILES[msg.sender] : null;
+                {/* Chat Message Stream */}
+                <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-background select-text">
+                  {chatMessages
+                    .filter(msg => msg.sender === "User" || AGENT_PROFILES[msg.sender]?.name.startsWith(AGENT_PROFILES[selectedAgent]?.name.split(" ")[0]))
+                    .map((msg, idx) => {
+                      const isUser = msg.sender === "User";
+                      const prof = !isUser ? AGENT_PROFILES[msg.sender] : null;
 
-                  return (
-                    <div key={idx} className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
-                      <div className="flex items-center gap-1.5 text-xs uppercase font-bold text-secondary select-none">
-                        {!isUser && <span>{prof?.avatar} {prof?.name}</span>}
-                        {isUser && <span>User</span>}
-                        <span>•</span>
-                        <span>{msg.time}</span>
-                      </div>
-                      <div className={`p-3.5 rounded-xl text-[15px] leading-relaxed max-w-[85%] border ${isUser ? "bg-foreground border-foreground text-background rounded-tr-none font-medium" : "bg-surface border-border text-foreground rounded-tl-none font-sans"}`}>
-                        {msg.text}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+                      return (
+                        <div key={idx} className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
+                          <div className="flex items-center gap-1.5 text-xs uppercase font-bold text-secondary select-none">
+                            {!isUser && <span>{prof?.avatar} {prof?.name}</span>}
+                            {isUser && <span>User</span>}
+                            <span>•</span>
+                            <span>{msg.time}</span>
+                          </div>
+                          <div className={`p-3.5 rounded-xl text-[15px] leading-relaxed max-w-[85%] border ${isUser ? "bg-foreground border-foreground text-background rounded-tr-none font-medium" : "bg-surface border-border text-foreground rounded-tl-none font-sans"}`}>
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
 
-            {/* Text box input drawer */}
-            <div className="p-3 border-t border-border bg-surface flex gap-2.5 select-none">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                placeholder={`Reply to ${AGENT_PROFILES[selectedAgent]?.name}...`}
-                className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-[15px] text-foreground placeholder-muted focus:border-border-active outline-none transition-colors"
-              />
-              <button
-                onClick={handleSendMessage}
-                className="w-9.5 h-9.5 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer shrink-0"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
+                {/* Text box input drawer */}
+                <div className="p-3 border-t border-border bg-surface flex gap-2.5 select-none">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                    placeholder={`Reply to ${AGENT_PROFILES[selectedAgent]?.name}...`}
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-[15px] text-foreground placeholder-muted focus:border-border-active outline-none transition-colors"
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    className="w-9.5 h-9.5 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer shrink-0"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1306,7 +1369,7 @@ function WorkspaceIDE() {
                   {testResults.map((tc, idx) => (
                     <div key={idx} className="p-4 rounded-xl border border-border bg-inset flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-sm text-foreground font-bold">TC #{idx + 1}: {tc.name}</span>
+                        <span className="font-mono text-sm text-foreground font-bold">TC #{idx + 1}: {tc.isHidden ? "Hidden Test Case" : tc.name}</span>
                         {tc.status === "idle" && <span className="text-sm text-foreground/80 font-bold select-none">Idle</span>}
                         {tc.status === "running" && <span className="text-sm text-foreground/80 font-bold animate-pulse select-none">Running...</span>}
                         {tc.status === "passed" && <span className="text-base text-green font-extrabold select-none">✓ Passed</span>}
@@ -1314,7 +1377,7 @@ function WorkspaceIDE() {
                       </div>
                       {tc.output && (
                         <div className="p-3 rounded-lg bg-background font-mono text-sm text-foreground select-text border border-border">
-                          {tc.output}
+                          {tc.isHidden && tc.status === "failed" ? "AssertionError: Hidden test case failed." : tc.output}
                         </div>
                       )}
                     </div>
@@ -1334,7 +1397,7 @@ function formatCodeFallback(code: string, language: string): string {
   if (!code) return "";
   const lines = code.split("\n");
   let indentLevel = 0;
-  
+
   const formattedLines = lines.map(line => {
     let trimmed = line.trim();
     if (!trimmed) return "";

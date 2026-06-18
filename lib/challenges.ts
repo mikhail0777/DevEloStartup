@@ -24,6 +24,8 @@ export interface AgentTrigger {
 export interface GeneratedChallenge {
   id: string;
   title: string;
+  category: string;
+  funcName?: string;
   description: string;
   role: string;
   level: string;
@@ -323,6 +325,8 @@ Draft your response inside the editor using the **STAR Method** (Situation, Task
   return {
     id: `dynamic-${seed}`,
     title,
+    category: mode === "Real-World Task" ? "Debugging" : mode === "System Design" ? "System Design" : mode === "Behavioral Interview" ? "Debugging" : "Algorithms",
+    funcName: operation,
     description,
     role,
     level,
@@ -457,6 +461,8 @@ Return ONLY a valid, parseable JSON object matching this TypeScript interface ex
 {
   "id": "gemini-[randomString]",
   "title": "[Engaging descriptive title]",
+  "category": "[One of: Algorithms, Debugging, SQL, Frontend, System Design]",
+  "funcName": "[Name of the primary function or class to call for verification]",
   "description": "[Deep, multi-paragraph markdown details with clear objectives, realistic context, and explanation requests]",
   "role": "${role}",
   "level": "${level}",
@@ -514,6 +520,7 @@ export interface ChallengeDefinition {
   id: string;
   title: string;
   category: "Algorithms" | "Debugging" | "SQL" | "Frontend" | "System Design";
+  funcName?: string;
   difficulty: "Easy" | "Medium" | "Hard";
   elo: number;
   description: string;
@@ -532,6 +539,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "hello-develiq",
     title: "Hello Develiq!",
     category: "Algorithms",
+    funcName: "greet",
     difficulty: "Easy",
     elo: 100,
     description: "Write a function `greet()` that returns the exact string `'Hello, Develiq!'`. This is your first challenge to test compiling outputs.",
@@ -588,6 +596,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "sum-of-two",
     title: "Sum of Two Numbers",
     category: "Algorithms",
+    funcName: "sum",
     difficulty: "Easy",
     elo: 200,
     description: "Write a function `sum(a, b)` that takes two numbers and returns their mathematical sum.",
@@ -649,6 +658,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "even-or-odd",
     title: "Even or Odd Checks",
     category: "Algorithms",
+    funcName: "isEven",
     difficulty: "Easy",
     elo: 350,
     description: "Write a function `isEven(n)` that returns `true` if `n` is even, and `false` if it is odd.",
@@ -710,6 +720,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "find-max",
     title: "Find Maximum Element",
     category: "Algorithms",
+    funcName: "findMax",
     difficulty: "Easy",
     elo: 500,
     description: "Write a function `findMax(arr)` that finds the maximum value inside a numerical array. Return `null` (or None) if the array is empty.",
@@ -771,6 +782,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "two-sum",
     title: "Two Sum Indices",
     category: "Algorithms",
+    funcName: "twoSum",
     difficulty: "Easy",
     elo: 800,
     description: "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
@@ -828,6 +840,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "valid-parentheses",
     title: "Valid Parentheses",
     category: "Algorithms",
+    funcName: "isValid",
     difficulty: "Easy",
     elo: 950,
     description: "Given a string `s` containing just the characters `'('`, `')'`, `'{'`, `'}'`, `'['` and `']'`, determine if the input string is valid. An input string is valid if brackets close in the correct order and types match up.",
@@ -887,6 +900,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "aggregate-revenue",
     title: "SQL aggregate: Active Customers Revenue",
     category: "SQL",
+    funcName: "getActiveRevenue",
     difficulty: "Easy",
     elo: 850,
     description: "Write an SQL query to retrieve the sum of payments from customers who have an active account status, grouped by customer ID.",
@@ -941,6 +955,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "use-cart-hook",
     title: "React State Custom useCart Hook",
     category: "Frontend",
+    funcName: "useCart",
     difficulty: "Medium",
     elo: 1450,
     description: "Create a React state custom hook `useCart` that supports adding, removing, and clearing items in an e-commerce cart. The hook should return `cartItems` array, `addToCart(item)`, `removeFromCart(itemId)`, and `clearCart()` methods.",
@@ -988,6 +1003,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "lru-cache",
     title: "LRU Cache Implementation",
     category: "Algorithms",
+    funcName: "LRUCache",
     difficulty: "Hard",
     elo: 2000,
     description: "Design a data structure that follows the constraints of a Least Recently Used (LRU) cache. Implement the `LRUCache` class:\n\n* `LRUCache(int capacity)` Initialize the LRU cache with positive size capacity.\n* `get(int key)` Return the value of the key if key exists, otherwise return -1.\n* `put(int key, int value)` Update key value if key exists. Otherwise, add key-value pair. If keys exceed capacity, evict the least recently used key.",
@@ -1035,6 +1051,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "stripe-webhook",
     title: "Stripe Webhook Signature Verifier",
     category: "Debugging",
+    funcName: "verifyWebhook",
     difficulty: "Medium",
     elo: 1350,
     description: "Write a function `verifyWebhook(payload, header, secret)` that validates if a Stripe Webhook signature is authentic to prevent payload tampering.\n\nStripe webhook headers are formatted as a comma-separated list of values:\n`t=timestamp,v1=signature`\n\nTo verify the webhook:\n1. Split the header to extract the integer `timestamp` (t) and the string `signature` (v1).\n2. Concatenate the timestamp string, the character `.`, and the raw string `payload` to form the signature payload (e.g., `1600000000.rawPayloadString`).\n3. Create a SHA-256 HMAC hash of the signature payload using the signing `secret` key.\n4. Check if the computed hex signature matches the signature parsed from the header.\n5. Check if the timestamp is within a 5-minute (300 seconds) tolerance window of the current system time to protect against replay attacks.",
@@ -1084,6 +1101,7 @@ const STATIC_CHALLENGES: ChallengeDefinition[] = [
     id: "redis-rate-limiter",
     title: "Redis-backed Sliding Window Rate Limiter",
     category: "System Design",
+    funcName: "isAllowed",
     difficulty: "Medium",
     elo: 1550,
     description: "Implement a sliding window rate limiter function `isAllowed(userId, limit, windowSizeSeconds, redisClient)` that determines if a client key should be throttled.\n\nYou should track timestamps in a Redis Sorted Set (`ZSET`) keyed by client user ID.\n\nYour rate limiter algorithm must perform the following actions atomically in order:\n1. Evict request timestamps that are older than the active sliding window (`now - windowSizeSeconds`).\n2. Count the total remaining items in the sorted set.\n3. If the total requests count is less than `limit`:\n   - Add the current timestamp string to the sorted set with value/score equal to the current epoch timestamp.\n   - Return `true` (request allowed).\n4. Otherwise, return `false` (request blocked).",
@@ -1193,6 +1211,8 @@ export const buildChallengeFromDefinition = (
   return {
     id: defn.id,
     title: defn.title,
+    category: defn.category,
+    funcName: defn.funcName,
     description: defn.description,
     role: "Developer",
     level: getCareerRankForElo(defn.elo),
