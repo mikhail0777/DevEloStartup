@@ -17,7 +17,7 @@ An advanced, code-observant technical preparation platform designed to move past
 *   📈 **10,000+ Interviews Done**: Real developers and student users have completed simulated technical screens.
 *   👥 **500+ Active Test Users**: A growing community testing our sandbox compilers and real-time heuristics.
 *   💰 **$5,000 Capital Raised**: Backed by early startup micro-funding to support LLM API processing.
-*   🎯 **Job Readiness**: Users experience an average **32% readiness gain** leading to **500+ successful offer landings** at tier-1 technology companies.
+*   🎯 **Job Readiness**: Users experience an average **32% readiness gain** leading to **50+ successful offer landings** at tier-1 technology companies.
 
 ---
 
