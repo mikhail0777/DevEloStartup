@@ -1,5 +1,6 @@
 # Develiq: Next-Gen AI-Driven Technical Prep Platform
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-red?style=for-the-badge&logo=vercel&color=000000)](https://develiq.vercel.app/)
 [![Next.js Version](https://img.shields.io/badge/Next.js-16.2-black?style=for-the-badge&logo=nextdotjs&color=000000)](https://nextjs.org)
 [![React Version](https://img.shields.io/badge/React-19.0-blue?style=for-the-badge&logo=react&color=61DAFB)](https://react.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwindcss&color=38B2AC)](https://tailwindcss.com)
@@ -7,6 +8,8 @@
 [![Google Gemini API](https://img.shields.io/badge/AI_Engine-Gemini_1.5_Flash-purple?style=for-the-badge&logo=google&color=4285F4)](https://deepmind.google/technologies/gemini)
 
 An advanced, code-observant technical preparation platform designed to move past simple algorithmic memory banks like static LeetCode. **Develiq** acts as an interactive, multi-agent AI review panel that observes code changes in real-time, runs semantic test-case validations, and grills candidates on production-grade software engineering tactics (HMAC signature security, Redis race conditions, JWKS tokens, and circuit-breaker states).
+
+🚀 **Live Showcase Link**: [Launch Develiq Web App](https://develiq.vercel.app/)
 
 ![Develiq Landing Page Showcase](public/landing_page.png)
 
