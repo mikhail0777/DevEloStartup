@@ -13,19 +13,37 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) return;
+    if (!name || !email || !password || isLoading) return;
     
+    setError("");
     setIsLoading(true);
     
-    // Simulate network delay for effect
-    setTimeout(() => {
-      loginUser(name, email, password);
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Could not create account.");
+        return;
+      }
+
+      loginUser(data.user.name, data.user.email);
       router.push("/dashboard");
-    }, 800);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -131,11 +149,18 @@ export default function SignupPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      minLength={8}
                       placeholder="••••••••"
                       className="w-full bg-transparent border-0 py-3.5 pl-10 pr-4 text-xs text-foreground placeholder-muted outline-none font-mono"
                     />
                   </div>
                 </div>
+
+                {error && (
+                  <div className="rounded-lg border border-red/40 bg-red/10 px-3 py-2 text-xs text-red font-mono">
+                    {error}
+                  </div>
+                )}
 
                 {/* Submit button */}
                 <div className="mt-4 flex flex-col gap-3">
@@ -155,6 +180,9 @@ export default function SignupPage() {
                       </>
                     )}
                   </button>
+                  <Link href="/login" className="text-center text-xs text-secondary hover:text-foreground transition-colors">
+                    Already have an account? Log in
+                  </Link>
                 </div>
               </form>
             </div>
