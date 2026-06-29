@@ -406,6 +406,15 @@ function WorkspaceIDE() {
 
   const voiceChatActiveRef = useRef(false);
   const recognitionRef = useRef<any>(null);
+  const aiBusyRef = useRef(false);
+  const speechSubmitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const challengeRef = useRef<any>(null);
+  const selectedAgentRef = useRef<any>("Interviewer");
+  const voiceActiveRef = useRef(false);
+  const geminiApiKeyRef = useRef<string | undefined>(undefined);
+
+
 
   useEffect(() => {
     voiceChatActiveRef.current = voiceChatActive;
@@ -416,28 +425,59 @@ function WorkspaceIDE() {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const rec = new SpeechRecognition();
-        rec.continuous = false;
-        rec.interimResults = false;
+        rec.continuous = true;
+        rec.interimResults = true;
         rec.lang = "en-US";
 
         rec.onstart = () => {
           setIsListening(true);
         };
 
-        rec.onresult = async (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          if (transcript.trim()) {
-            await sendSpeechToAgent(transcript);
+        rec.onresult = (event: any) => {
+          let fullTranscript = "";
+          for (let i = 0; i < event.results.length; ++i) {
+            fullTranscript += event.results[i][0].transcript;
+          }
+
+          if (fullTranscript.trim()) {
+            setInputMessage(fullTranscript);
+
+            if (speechSubmitTimeoutRef.current) {
+              clearTimeout(speechSubmitTimeoutRef.current);
+            }
+
+            speechSubmitTimeoutRef.current = setTimeout(async () => {
+              setInputMessage("");
+              
+              if (recognitionRef.current) {
+                try {
+                  recognitionRef.current.stop();
+                } catch (e) {}
+              }
+
+              await sendSpeechToAgent(fullTranscript);
+            }, 1800); // 1.8 seconds of silence to submit
           }
         };
 
         rec.onerror = (e: any) => {
           console.error("Speech recognition error:", e);
-          setIsListening(false);
         };
 
         rec.onend = () => {
           setIsListening(false);
+          // If voice chat is still active and the AI is not speaking/thinking, auto-restart the mic!
+          if (voiceChatActiveRef.current && !aiBusyRef.current) {
+            setTimeout(() => {
+              if (voiceChatActiveRef.current && !aiBusyRef.current) {
+                try {
+                  recognitionRef.current.start();
+                } catch (err) {
+                  console.error("Failed to auto-restart recognition onend:", err);
+                }
+              }
+            }, 300);
+          }
         };
 
         recognitionRef.current = rec;
@@ -459,6 +499,11 @@ function WorkspaceIDE() {
   const decorationsRef = useRef<string[]>([]);
   const liveObservationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastObservedCode = useRef("");
+
+  challengeRef.current = challenge;
+  selectedAgentRef.current = selectedAgent;
+  voiceActiveRef.current = voiceActive;
+  geminiApiKeyRef.current = state.geminiApiKey;
 
   const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
@@ -829,12 +874,15 @@ function WorkspaceIDE() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (liveObservationTimeoutRef.current) clearTimeout(liveObservationTimeoutRef.current);
+      if (speechSubmitTimeoutRef.current) clearTimeout(speechSubmitTimeoutRef.current);
     };
   }, [router]);
 
-  // Voice synthesis helper
   const speak = (text: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
+      // Mark AI as busy speaking
+      aiBusyRef.current = true;
+
       // Clean markdown structures from string before speaking
       const clean = text.replace(/`[^`]+`/g, "").replace(/\*+/g, "");
       const utterance = new SpeechSynthesisUtterance(clean);
@@ -850,6 +898,18 @@ function WorkspaceIDE() {
       utterance.pitch = 1.0;
       
       utterance.onend = () => {
+        // AI is done speaking
+        aiBusyRef.current = false;
+        if (voiceChatActiveRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {}
+        }
+      };
+
+      utterance.onerror = (err) => {
+        console.error("Speech utterance error:", err);
+        aiBusyRef.current = false;
         if (voiceChatActiveRef.current && recognitionRef.current) {
           try {
             recognitionRef.current.start();
@@ -861,11 +921,14 @@ function WorkspaceIDE() {
       window.speechSynthesis.resume();
       window.speechSynthesis.cancel(); // Cancel active speeches
       window.speechSynthesis.speak(utterance);
+    } else {
+      aiBusyRef.current = false;
     }
   };
 
   const triggerLiveObservation = async (currentCode: string) => {
-    if (!challenge || currentCode === lastObservedCode.current || currentCode.trim() === challenge.starterCode.trim()) return;
+    const currentChallenge = challengeRef.current;
+    if (!currentChallenge || currentCode === lastObservedCode.current || currentCode.trim() === currentChallenge.starterCode.trim()) return;
     lastObservedCode.current = currentCode;
 
     try {
@@ -873,8 +936,8 @@ function WorkspaceIDE() {
         "LiveInterviewer",
         "[System Live Keystroke Observation Check - The user has paused coding. Observe their solution progress, logic efficiency, and naming choices. Ask a short relevant question or make an observation. Under 2 sentences.]",
         currentCode,
-        challenge.description,
-        state.geminiApiKey
+        currentChallenge.description,
+        geminiApiKeyRef.current
       );
 
       const replyMsg: ChatMessage = {
@@ -884,7 +947,7 @@ function WorkspaceIDE() {
       };
 
       setChatMessages(prev => [...prev, replyMsg]);
-      if (voiceActive) {
+      if (voiceActiveRef.current) {
         speak(replyText);
       }
     } catch (e) {
@@ -1003,7 +1066,17 @@ function WorkspaceIDE() {
   };
 
   const sendSpeechToAgent = async (text: string) => {
-    if (!challenge) return;
+    const currentChallenge = challengeRef.current;
+    if (!currentChallenge) return;
+
+    // Mark AI as busy while fetching response
+    aiBusyRef.current = true;
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    }
 
     const userMsg: ChatMessage = {
       sender: "User",
@@ -1013,24 +1086,34 @@ function WorkspaceIDE() {
 
     setChatMessages(prev => [...prev, userMsg]);
 
-    const activeAgent = selectedAgent;
+    try {
+      const activeAgent = selectedAgentRef.current;
 
-    const replyText = await getAgentResponse(
-      activeAgent,
-      text,
-      code,
-      challenge.description,
-      state.geminiApiKey
-    );
+      const replyText = await getAgentResponse(
+        activeAgent,
+        text,
+        codeRef.current,
+        currentChallenge.description,
+        geminiApiKeyRef.current
+      );
 
-    const replyMsg: ChatMessage = {
-      sender: activeAgent,
-      text: replyText,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+      const replyMsg: ChatMessage = {
+        sender: activeAgent,
+        text: replyText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
 
-    setChatMessages(prev => [...prev, replyMsg]);
-    speak(replyText);
+      setChatMessages(prev => [...prev, replyMsg]);
+      speak(replyText);
+    } catch (err) {
+      console.error("Failed to fetch response for speech:", err);
+      aiBusyRef.current = false;
+      if (voiceChatActiveRef.current && recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (e) {}
+      }
+    }
   };
 
   const toggleSpeechRecognition = () => {
@@ -1048,6 +1131,7 @@ function WorkspaceIDE() {
     } else {
       setVoiceChatActive(true);
       setVoiceActive(true);
+      aiBusyRef.current = false;
       try {
         recognitionRef.current.start();
       } catch (e) {
