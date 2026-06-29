@@ -11,7 +11,7 @@ import { AGENT_PROFILES, scanUserCode, getAgentResponse } from "@/lib/agents";
 import {
   Play, Send, HelpCircle, AlertTriangle, CheckCircle,
   Terminal as TermIcon, MessageSquare, Volume2, Award, Clock, ArrowRight, Settings, Info,
-  Sun, Moon
+  Sun, Moon, Mic, MicOff
 } from "lucide-react";
 
 interface ChatMessage {
@@ -398,18 +398,52 @@ function WorkspaceIDE() {
   const [inputMessage, setInputMessage] = useState("");
   const [timer, setTimer] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<"Interviewer" | "Debugger" | "LiveInterviewer" | "Assistant">("Interviewer");
+  const [selectedAgent, setSelectedAgent] = useState<"Interviewer" | "Debugger" | "LiveInterviewer">("Interviewer");
   const [testResults, setTestResults] = useState<{ id: string; name: string; status: "idle" | "running" | "passed" | "failed"; output?: string; isHidden?: boolean }[]>([]);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
-  const [agentMode, setAgentMode] = useState(true);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceChatActive, setVoiceChatActive] = useState(false);
+
+  const voiceChatActiveRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!agentMode) {
-      setSelectedAgent("Assistant");
-    } else {
-      setSelectedAgent("Interviewer");
+    voiceChatActiveRef.current = voiceChatActive;
+  }, [voiceChatActive]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.lang = "en-US";
+
+        rec.onstart = () => {
+          setIsListening(true);
+        };
+
+        rec.onresult = async (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          if (transcript.trim()) {
+            await sendSpeechToAgent(transcript);
+          }
+        };
+
+        rec.onerror = (e: any) => {
+          console.error("Speech recognition error:", e);
+          setIsListening(false);
+        };
+
+        rec.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = rec;
+      }
     }
-  }, [agentMode]);
+  }, []);
 
   // Rules configuration loaded from setup
   const [aiAssistantActive, setAiAssistantActive] = useState(true);
@@ -804,6 +838,15 @@ function WorkspaceIDE() {
       // Clean markdown structures from string before speaking
       const clean = text.replace(/`[^`]+`/g, "").replace(/\*+/g, "");
       const utterance = new SpeechSynthesisUtterance(clean);
+      
+      utterance.onend = () => {
+        if (voiceChatActiveRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {}
+        }
+      };
+
       window.speechSynthesis.cancel(); // Cancel active speeches
       window.speechSynthesis.speak(utterance);
     }
@@ -848,7 +891,7 @@ function WorkspaceIDE() {
     setDiagnostics(codeLogs);
 
     // Live Interviewer Keystroke Observation Check
-    if (selectedAgent === "LiveInterviewer" && agentMode) {
+    if (selectedAgent === "LiveInterviewer") {
       if (liveObservationTimeoutRef.current) {
         clearTimeout(liveObservationTimeoutRef.current);
       }
@@ -940,13 +983,62 @@ function WorkspaceIDE() {
 
     setChatMessages(prev => [...prev, replyMsg]);
 
-    // Increment Assistant usage count if they ask copilot for help
-    if (activeAgent === "Assistant") {
-      setCopilotUsageCount(prev => prev + 1);
-    }
+
 
     if (voiceActive) {
       speak(replyText);
+    }
+  };
+
+  const sendSpeechToAgent = async (text: string) => {
+    if (!challenge) return;
+
+    const userMsg: ChatMessage = {
+      sender: "User",
+      text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+
+    const activeAgent = selectedAgent;
+
+    const replyText = await getAgentResponse(
+      activeAgent,
+      text,
+      code,
+      challenge.description,
+      state.geminiApiKey
+    );
+
+    const replyMsg: ChatMessage = {
+      sender: activeAgent,
+      text: replyText,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, replyMsg]);
+    speak(replyText);
+  };
+
+  const toggleSpeechRecognition = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.");
+      return;
+    }
+
+    if (voiceChatActive) {
+      setVoiceChatActive(false);
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    } else {
+      setVoiceChatActive(true);
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error("Failed to start speech recognition:", e);
+      }
     }
   };
 
@@ -1385,7 +1477,7 @@ function WorkspaceIDE() {
               onClick={() => setActiveRightTab("chat")}
               className={`flex-1 h-full flex items-center justify-center border-b-2 transition-all ${activeRightTab === "chat" ? "border-foreground text-foreground bg-elevated/30" : "border-transparent hover:text-foreground cursor-pointer"}`}
             >
-              <MessageSquare className="w-4 h-4 mr-1.5" /> AI Interviewer Chat
+              <MessageSquare className="w-4 h-4 mr-1.5" /> AI Interview Chat
             </button>
             <button
               onClick={() => setActiveRightTab("tests")}
@@ -1401,29 +1493,22 @@ function WorkspaceIDE() {
             {activeRightTab === "chat" && (
               <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Agent Selector Header */}
-                {agentMode ? (
-                  <div className="p-3 border-b border-border bg-surface flex gap-1.5 overflow-x-auto select-none no-scrollbar">
-                    {Object.keys(AGENT_PROFILES)
-                      .filter(a => a !== "Coach" && a !== "Test Runner" && (a !== "Assistant" || aiAssistantActive))
-                      .map((agentName) => {
-                        const prof = AGENT_PROFILES[agentName];
-                        return (
-                          <button
-                            key={agentName}
-                            onClick={() => setSelectedAgent(agentName as any)}
-                            className={`px-3.5 py-1.5 rounded-lg border text-sm font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
-                          >
-                            {prof.avatar} {prof.name.split(" ")[0]}
-                          </button>
-                        );
-                      })}
-                  </div>
-                ) : (
-                  <div className="p-3 border-b border-border bg-surface text-xs font-mono text-secondary select-none flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-green animate-pulse" />
-                    <span>Basic AI Coding Chatbot Active</span>
-                  </div>
-                )}
+                <div className="p-3 border-b border-border bg-surface flex gap-1.5 overflow-x-auto select-none no-scrollbar">
+                  {Object.keys(AGENT_PROFILES)
+                    .filter(a => a !== "Assistant")
+                    .map((agentName) => {
+                      const prof = AGENT_PROFILES[agentName as keyof typeof AGENT_PROFILES];
+                      return (
+                        <button
+                          key={agentName}
+                          onClick={() => setSelectedAgent(agentName as any)}
+                          className={`px-3.5 py-1.5 rounded-lg border text-sm font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
+                        >
+                          {prof.avatar} {prof.name}
+                        </button>
+                      );
+                    })}
+                </div>
 
                 {/* Chat Message Stream */}
                 <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-background select-text">
@@ -1457,7 +1542,7 @@ function WorkspaceIDE() {
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                      placeholder={agentMode ? `Interact with ${AGENT_PROFILES[selectedAgent]?.name}...` : "Ask a coding question..."}
+                      placeholder={`Interact with ${AGENT_PROFILES[selectedAgent]?.name}...`}
                       className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-[15px] text-foreground placeholder-muted focus:border-border-active outline-none transition-colors font-sans"
                     />
                   </div>
@@ -1473,23 +1558,21 @@ function WorkspaceIDE() {
                       </span>
                     </div>
 
-                    {/* Agent toggle & Send Button */}
-                    <div className="flex items-center gap-4.5 select-none">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-mono font-bold uppercase tracking-wider ${agentMode ? "text-blue" : "text-muted"}`}>Agent</span>
-                        <button
-                          onClick={() => setAgentMode(!agentMode)}
-                          className={`w-11 h-6 rounded-full p-0.5 transition-all duration-300 relative focus:outline-none ${agentMode ? "bg-blue" : "bg-inset border border-border"}`}
-                        >
-                          <span className={`w-5 h-5 rounded-full bg-foreground shadow-md block transform duration-300 ${agentMode ? "translate-x-5" : "translate-x-0"}`} />
-                        </button>
-                      </div>
+                    {/* Voice Chat & Send Button */}
+                    <div className="flex items-center gap-3 select-none">
+                      <button
+                        onClick={toggleSpeechRecognition}
+                        className={`w-9.5 h-9.5 rounded-xl border transition-all flex items-center justify-center cursor-pointer shrink-0 shadow-sm ${voiceChatActive ? "bg-red-500 border-red-500 text-white animate-pulse" : "bg-elevated border-border text-secondary hover:text-foreground"}`}
+                        title={voiceChatActive ? "Live Voice Chat Active - Click to stop" : "Start Live Voice Interview"}
+                      >
+                        {voiceChatActive ? <Mic className="w-4.5 h-4.5" /> : <MicOff className="w-4.5 h-4.5" />}
+                      </button>
 
                       <button
                         onClick={handleSendMessage}
-                        className="w-8.5 h-8.5 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer shrink-0 shadow-sm"
+                        className="w-9.5 h-9.5 rounded-xl bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer shrink-0 shadow-sm"
                       >
-                        <Send className="w-4 h-4" />
+                        <Send className="w-4.5 h-4.5" />
                       </button>
                     </div>
                   </div>
