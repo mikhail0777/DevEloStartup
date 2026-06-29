@@ -23,6 +23,10 @@ export async function PATCH(request: NextRequest) {
       ...db.users[userIndex].progress,
       ...body.progress,
     },
+    ...(body.aiProvider !== undefined && { aiProvider: body.aiProvider }),
+    ...(body.aiModel !== undefined && { aiModel: body.aiModel }),
+    ...(body.aiApiKey !== undefined && { aiApiKey: body.aiApiKey }),
+    ...(body.aiEndpoint !== undefined && { aiEndpoint: body.aiEndpoint }),
     updatedAt: new Date().toISOString(),
   };
 

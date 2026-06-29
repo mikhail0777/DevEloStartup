@@ -33,6 +33,35 @@ function SetupChallenge() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
 
+  const [limitExceeded, setLimitExceeded] = useState<"arena" | "interview" | null>(null);
+
+  useEffect(() => {
+    const isProOrPremium = state.subscription === "pro" || state.subscription === "enterprise" || state.subscription === "premium";
+    if (!isProOrPremium) {
+      if (mode === "Coding Arena") {
+        const totalArena = state.history.filter((h) => h.mode === "Coding Arena").length;
+        if (totalArena >= 20) {
+          setLimitExceeded("arena");
+          return;
+        }
+      } else if (mode === "Real Interview" || mode === "AI-Assisted Interview") {
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const thisMonthInterviews = state.history.filter((h) => {
+          if (h.mode !== "Real Interview" && h.mode !== "AI-Assisted Interview") return false;
+          const d = new Date(h.date);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        }).length;
+
+        if (thisMonthInterviews >= 5) {
+          setLimitExceeded("interview");
+          return;
+        }
+      }
+    }
+    setLimitExceeded(null);
+  }, [mode, state.history, state.subscription]);
+
   // Set default mode if passed in query string
   useEffect(() => {
     const modeParam = searchParams.get("mode");
@@ -60,6 +89,10 @@ function SetupChallenge() {
   ];
 
   const handleStart = async () => {
+    if (limitExceeded) {
+      router.push("/pricing");
+      return;
+    }
     setLoading(true);
     setLoadingStep(0);
 
@@ -233,7 +266,7 @@ function SetupChallenge() {
                 {/* Choose Level */}
                 <div className="flex flex-col gap-3 border-t border-border pt-6">
                   <label className="text-sm font-bold text-secondary font-mono">
-                    <span className="text-muted">//</span> 2. Experience Level (Rating Scale)
+                    <span className="text-muted">//</span> 2. Target Seniority Level
                   </label>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
                     {levels.map((l, idx) => (
@@ -331,12 +364,26 @@ function SetupChallenge() {
                 </div>
 
                 {/* Launch Button */}
-                <button
-                  onClick={handleStart}
-                  className="w-full py-4 rounded-lg bg-foreground text-background font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
-                >
-                  <Sparkles className="w-4.5 h-4.5" /> Compile Challenge
-                </button>
+                {limitExceeded ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="p-4 rounded-lg bg-red-950/20 border border-red/30 text-xs text-red font-mono leading-relaxed">
+                      // Limit Reached: {limitExceeded === "arena" ? "20/20 Free Coding Arena challenges used." : "5/5 Monthly Free AI interviews used."} Upgrade to continue.
+                    </div>
+                    <Link
+                      href="/pricing"
+                      className="w-full py-4 rounded-lg bg-green text-background font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2.5 cursor-pointer font-mono text-center"
+                    >
+                      🚀 Upgrade to Pro / Premium
+                    </Link>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleStart}
+                    className="w-full py-4 rounded-lg bg-foreground text-background font-extrabold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-4.5 h-4.5" /> Compile Challenge
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -104,7 +104,7 @@ export default function LandingPage() {
             </div>
             <div>
               <div className="text-2xl font-bold text-red font-mono">32%</div>
-              <div className="text-[10px] text-muted uppercase font-bold tracking-widest mt-1.5 font-sans">// Readiness Gain</div>
+              <div className="text-[10px] text-muted uppercase font-bold tracking-widest mt-1.5 font-sans">// Skill Growth</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-blue font-mono">400+</div>
@@ -241,45 +241,45 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div className="select-none">
               <div className="inline-flex items-center gap-1.5 text-xs font-bold text-secondary uppercase tracking-wider mb-4 font-mono">
-                <Star className="w-3.5 h-3.5 text-yellow fill-current" /> // Skill-Benchmarking Scale
+                <Star className="w-3.5 h-3.5 text-yellow fill-current" /> // Developer Progression Scale
               </div>
-              <h2 className="text-3xl font-bold text-foreground mb-6 font-sans">Track Your Career Readiness</h2>
+              <h2 className="text-3xl font-bold text-foreground mb-6 font-sans">Track Your Coding Progress</h2>
               <p className="text-sm text-secondary leading-relaxed mb-8 font-sans">
-                Develiq replaces boring progress indices. Track your active <strong className="text-foreground">Offer Readiness Score</strong> mapping 6 essential quadrants. We also maintain a secondary <span className="text-blue">&quot;Practice Tier Index&quot;</span> (ELO 0-2500+ scale) to automatically scale task challenges matching your skills.
+                Develiq keeps you motivated. Track your developer level, earn experience points (XP) for completing practice tasks, and maintain a coding streak calendar. We automatically scale challenge difficulties matching your active stack.
               </p>
               
               <div className="flex flex-col gap-4 text-xs font-mono">
                 <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="font-semibold text-yellow">Grandmaster Benchmark</span>
-                  <span className="text-foreground font-bold">2200 - 2500+</span>
+                  <span className="font-semibold text-yellow">Principal Engineer Tier</span>
+                  <span className="text-foreground font-bold">Level 10 - 9000+ XP</span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="font-semibold text-red">Senior Level Coder</span>
-                  <span className="text-foreground font-medium">1900 - 2199</span>
+                  <span className="font-semibold text-red">Lead Engineer Tier</span>
+                  <span className="text-foreground font-medium">Level 7 - Level 9 (6000+ XP)</span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="font-semibold text-blue">Intermediate Developer</span>
-                  <span className="text-foreground font-medium">1600 - 1899</span>
+                  <span className="font-semibold text-blue">Senior Engineer Tier</span>
+                  <span className="text-foreground font-medium">Level 4 - Level 6 (3000+ XP)</span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="font-semibold text-muted">Internship Coder</span>
-                  <span className="text-muted">700 - 999</span>
+                  <span className="font-semibold text-muted">Associate Coder Tier</span>
+                  <span className="text-muted">Level 1 - Level 3 (0+ XP)</span>
                 </div>
               </div>
             </div>
 
             {/* Simulated match panel */}
             <div className="p-8 rounded-2xl bg-surface border border-border flex flex-col gap-6 relative overflow-hidden font-sans">
-              <div className="text-xs font-bold uppercase tracking-wider text-muted select-none font-mono">// Review Timeline Annotation</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-muted select-none font-mono">// Session Complete Log</div>
               
               <div className="flex items-center justify-between select-none">
                 <div>
-                  <h4 className="text-xl font-bold text-foreground">Offer Readiness: <span>74%</span></h4>
-                  <div className="text-xs text-secondary font-semibold mt-1">+3% gain</div>
+                  <h4 className="text-xl font-bold text-foreground">XP Earned: <span>+500 XP</span></h4>
+                  <div className="text-xs text-secondary font-semibold mt-1">Level Up Progress 85%</div>
                 </div>
                 <div className="px-3.5 py-1.5 rounded-lg bg-inset border border-border font-mono">
-                  <span className="text-[10px] text-muted font-bold block">PRACTICE TIER</span>
-                  <span className="text-sm font-bold text-foreground mt-0.5">1280 <span className="text-xs text-foreground font-medium">+35</span></span>
+                  <span className="text-[10px] text-muted font-bold block">PRACTICE STREAK</span>
+                  <span className="text-sm font-bold text-foreground mt-0.5">5 Days <span className="text-xs text-foreground font-medium">🔥</span></span>
                 </div>
               </div>
 

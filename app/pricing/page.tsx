@@ -8,7 +8,7 @@ import { ArrowLeft, Check, Sparkles, AlertCircle, Award, Sun, Moon } from "lucid
 
 export default function Pricing() {
   const router = useRouter();
-  const { state, toggleTheme } = useStore();
+  const { state, updateUser, toggleTheme } = useStore();
   const [successModal, setSuccessModal] = useState<string | null>(null);
 
   const plans = [
@@ -21,7 +21,7 @@ export default function Pricing() {
         "5 AI interviews / month",
         "20 coding arena challenges",
         "Daily challenge XP gains",
-        "Basic ELO rating updates",
+        "Standard XP level updates",
         "Streak tracking calendar"
       ],
       isPopular: false,
@@ -54,7 +54,7 @@ export default function Pricing() {
         "Everything in Pro Tier",
         "Voice Interview TTS integrations",
         "Advanced System Design evaluations",
-        "Weekly readiness progress logs",
+        "Weekly XP progress reports",
         "Voice speech synthesis interruptions",
         "Full agent replay analyses"
       ],
@@ -63,14 +63,29 @@ export default function Pricing() {
     }
   ];
 
-  const handleSubscribe = (planName: string) => {
+  const handleSubscribe = async (planName: string) => {
     if (planName === "Free Plan") return;
     
-    setSuccessModal(planName);
-    setTimeout(() => {
-      setSuccessModal(null);
-      router.push("/dashboard");
-    }, 2800);
+    const planKey = planName === "Pro Tier" ? "pro" : "premium";
+
+    try {
+      const res = await fetch("/api/billing/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planKey }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        updateUser(state.user?.name || "", state.user?.email || "", data.user.subscription);
+        setSuccessModal(planName);
+        setTimeout(() => {
+          setSuccessModal(null);
+          router.push("/dashboard");
+        }, 2800);
+      }
+    } catch (err) {
+      console.error("Subscription update error:", err);
+    }
   };
 
   return (

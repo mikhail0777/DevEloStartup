@@ -21,6 +21,10 @@ export interface StoredUser {
   salt: string;
   subscription: "free" | "pro" | "enterprise" | null;
   progress: UserProgress;
+  aiProvider?: "built-in" | "gemini" | "openai" | "anthropic" | "custom" | null;
+  aiModel?: string | null;
+  aiApiKey?: string | null;
+  aiEndpoint?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +77,10 @@ export function publicUser(user: StoredUser) {
     email: user.email,
     subscription: user.subscription,
     progress: user.progress,
+    aiProvider: user.aiProvider || "built-in",
+    aiModel: user.aiModel || "",
+    aiApiKey: user.aiApiKey || "",
+    aiEndpoint: user.aiEndpoint || "",
     createdAt: user.createdAt,
   };
 }

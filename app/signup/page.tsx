@@ -37,7 +37,7 @@ export default function SignupPage() {
         return;
       }
 
-      loginUser(data.user.name, data.user.email);
+      loginUser(data.user);
       router.push("/dashboard");
     } catch {
       setError("Network error. Please try again.");
@@ -93,7 +93,7 @@ export default function SignupPage() {
                   Sign Up
                 </h1>
                 <p className="text-base text-foreground leading-relaxed font-sans">
-                  Create an account to start practice runs, record logs, and level up your engineering ELO rating.
+                  Create an account to start practice runs, record logs, and level up your engineering skills.
                 </p>
               </div>
 

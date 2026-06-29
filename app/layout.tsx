@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Develiq | Gamified Technical Practice & Mock Interview Arena",
-  description: "Practice realistic developer tasks, coding challenges, system designs, and hackathons with interactive, code-observant AI interviewers. Level up your ELO rating and Offer Readiness.",
+  description: "Practice realistic developer tasks, coding challenges, system designs, and hackathons with interactive, code-observant AI interviewers. Level up your coding skills, earn XP, and track streaks.",
 };
 
 import { StoreProvider } from "@/lib/store";

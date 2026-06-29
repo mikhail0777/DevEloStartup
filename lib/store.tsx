@@ -59,6 +59,11 @@ export interface UserProfileState {
   history: MatchHistoryItem[];
   geminiApiKey: string;
   theme: "dark" | "light";
+  subscription: "free" | "pro" | "premium" | "enterprise" | null;
+  aiProvider: "built-in" | "gemini" | "openai" | "anthropic" | "custom";
+  aiModel: string;
+  aiApiKey: string;
+  aiEndpoint: string;
 }
 
 const DEFAULT_STATE: UserProfileState = {
@@ -71,13 +76,19 @@ const DEFAULT_STATE: UserProfileState = {
   unlockedBadges: [],
   history: [],
   geminiApiKey: "",
-  theme: "dark"
+  theme: "dark",
+  subscription: "free",
+  aiProvider: "built-in",
+  aiModel: "",
+  aiApiKey: "",
+  aiEndpoint: ""
 };
 
 interface DeveliqStore {
   state: UserProfileState;
-  loginUser: (name: string, email: string, password?: string) => void;
-  updateUser: (name: string, email: string, password?: string) => void;
+  loginUser: (user: any) => void;
+  updateUser: (name: string, email: string, subscription?: string) => void;
+  updateAiProviderSettings: (provider: string, model: string, key: string, endpoint: string) => void;
   logoutUser: () => void;
   addXP: (amount: number) => void;
   updateELO: (change: number) => void;
@@ -107,21 +118,97 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [state, setState] = useState<UserProfileState>(DEFAULT_STATE);
   const [mounted, setMounted] = useState(false);
 
+  // Restore user session from backend or fallback to localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("develiq_state_v1");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (!parsed.theme) {
-          parsed.theme = "dark";
-        }
-        setState(parsed);
-      } catch (e) {
-        console.error("Error parsing saved state:", e);
+    const initStore = async () => {
+      let initialTheme: "dark" | "light" = "dark";
+      let localApiKey = "";
+      const saved = localStorage.getItem("develiq_state_v1");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.theme) initialTheme = parsed.theme;
+          if (parsed.geminiApiKey) localApiKey = parsed.geminiApiKey;
+        } catch {}
       }
-    }
-    setMounted(true);
+
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            const dbUser = data.user;
+            setState({
+              user: { name: dbUser.name, email: dbUser.email },
+              xp: dbUser.progress.xp,
+              streak: dbUser.progress.streak,
+              streakDates: dbUser.progress.streakDates,
+              rating: dbUser.progress.rating,
+              offerReadiness: dbUser.progress.offerReadiness,
+              unlockedBadges: dbUser.progress.unlockedBadges,
+              history: dbUser.progress.history,
+              subscription: dbUser.subscription || "free",
+              aiProvider: dbUser.aiProvider || "built-in",
+              aiModel: dbUser.aiModel || "",
+              aiApiKey: dbUser.aiApiKey || "",
+              aiEndpoint: dbUser.aiEndpoint || "",
+              geminiApiKey: localApiKey,
+              theme: initialTheme,
+            });
+            setMounted(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Session restore error:", err);
+      }
+
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setState({
+            ...DEFAULT_STATE,
+            ...parsed,
+            theme: initialTheme,
+          });
+        } catch {}
+      }
+      setMounted(true);
+    };
+
+    initStore();
   }, []);
+
+  // Debounced progress synchronization to backend users.json DB
+  useEffect(() => {
+    if (state.user && mounted) {
+      const payload = {
+        xp: state.xp,
+        streak: state.streak,
+        streakDates: state.streakDates,
+        rating: state.rating,
+        offerReadiness: state.offerReadiness,
+        unlockedBadges: state.unlockedBadges,
+        history: state.history,
+      };
+      
+      const timeoutId = setTimeout(() => {
+        fetch("/api/progress", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            progress: payload,
+            aiProvider: state.aiProvider,
+            aiModel: state.aiModel,
+            aiApiKey: state.aiApiKey,
+            aiEndpoint: state.aiEndpoint,
+          }),
+        }).catch((err) => console.error("Database progress sync error:", err));
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [state.user, state.xp, state.streak, state.streakDates, state.rating, state.offerReadiness, state.unlockedBadges, state.history, state.aiProvider, state.aiModel, state.aiApiKey, state.aiEndpoint, mounted]);
 
   useEffect(() => {
     if (state.theme === "light") {
@@ -146,24 +233,58 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  const loginUser = (name: string, email: string, password?: string) => {
+  const loginUser = (user: any) => {
     saveState({
       ...state,
-      user: { name, email, password: password || "" },
+      user: { name: user.name, email: user.email },
+      xp: user.progress.xp,
+      streak: user.progress.streak,
+      streakDates: user.progress.streakDates,
+      rating: user.progress.rating,
+      offerReadiness: user.progress.offerReadiness,
+      unlockedBadges: user.progress.unlockedBadges,
+      history: user.progress.history,
+      subscription: user.subscription || "free",
+      aiProvider: user.aiProvider || "built-in",
+      aiModel: user.aiModel || "",
+      aiApiKey: user.aiApiKey || "",
+      aiEndpoint: user.aiEndpoint || "",
     });
   };
 
-  const updateUser = (name: string, email: string, password?: string) => {
+  const updateUser = (name: string, email: string, subscription?: string) => {
     saveState({
       ...state,
-      user: { name, email, password: password || "" },
+      user: state.user ? { ...state.user, name, email } : null,
+      subscription: subscription ? (subscription as any) : state.subscription,
+    });
+  };
+
+  const updateAiProviderSettings = (provider: string, model: string, key: string, endpoint: string) => {
+    saveState({
+      ...state,
+      aiProvider: provider as any,
+      aiModel: model,
+      aiApiKey: key,
+      aiEndpoint: endpoint
     });
   };
 
   const logoutUser = () => {
+    // Clear cookies client-side or call server-side clear
+    document.cookie = "develiq_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     saveState({
       ...state,
       user: null,
+      subscription: "free",
+      history: [],
+      xp: 0,
+      rating: 1000,
+      streak: 0,
+      aiProvider: "built-in",
+      aiModel: "",
+      aiApiKey: "",
+      aiEndpoint: ""
     });
   };
 
@@ -317,6 +438,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         state,
         loginUser,
         updateUser,
+        updateAiProviderSettings,
         logoutUser,
         addXP,
         updateELO,

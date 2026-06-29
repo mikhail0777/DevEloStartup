@@ -22,13 +22,13 @@ export default function DashboardPage() {
 
 function Dashboard() {
   const router = useRouter();
-  const { state, getCareerRank, getScoreBreakdown, toggleTheme } = useStore();
+  const { state, getCareerRank, getScoreBreakdown, toggleTheme, logoutUser } = useStore();
   
   const careerRank = getCareerRank();
   const breakdown = getScoreBreakdown();
   
   // Tab states
-  const [activeTab, setActiveTab] = useState<"catalog" | "ladder" | "modes">("catalog");
+  const [activeTab, setActiveTab] = useState<"catalog" | "ladder" | "modes" | "analytics">("catalog");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedLang, setSelectedLang] = useState("JavaScript");
@@ -143,8 +143,17 @@ function Dashboard() {
               <div className="w-5.5 h-5.5 rounded-full bg-inset border border-border flex items-center justify-center text-[11px] font-bold text-foreground">
                 {state.user?.name ? state.user.name.charAt(0).toUpperCase() : "U"}
               </div>
-              Settings
+              Profile & Settings
             </LinkNext>
+            <button
+              onClick={() => {
+                logoutUser();
+                router.push("/login");
+              }}
+              className="px-4 py-2 font-semibold border border-border rounded-md bg-surface text-secondary hover:text-foreground hover:border-border-muted transition-all cursor-pointer"
+            >
+              Sign Out
+            </button>
             <button
               onClick={toggleTheme}
               className="p-2 border border-border rounded-md bg-surface text-foreground hover:bg-elevated transition-colors cursor-pointer"
@@ -173,6 +182,12 @@ function Dashboard() {
               className={`px-5 py-3.5 border-b-2 font-bold transition-colors cursor-pointer ${activeTab === "modes" ? "border-foreground text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
             >
               Interview Wizard
+            </button>
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`px-5 py-3.5 border-b-2 font-bold transition-colors cursor-pointer ${activeTab === "analytics" ? "border-foreground text-foreground" : "border-transparent text-secondary hover:text-foreground"}`}
+            >
+              Analytics Dashboard
             </button>
           </div>
 
@@ -319,6 +334,79 @@ function Dashboard() {
                     </div>
                   </LinkNext>
                 ))}
+              </div>
+            </div>
+          )}
+ 
+          {/* TAB 4: ANALYTICS DASHBOARD */}
+          {activeTab === "analytics" && (
+            <div className="flex flex-col gap-8 animate-fade-in">
+              <div className="grid md:grid-cols-2 gap-8 items-stretch">
+                {/* Developer Profile & Progression Card */}
+                <div className="p-6 rounded-xl border border-border bg-surface flex flex-col justify-between shadow-sm">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-xs text-secondary font-mono">// EXPERIENCE LEVEL PROGRESSION</span>
+                    <h4 className="text-2xl font-bold text-foreground font-sans">Level {currentLevel} Developer</h4>
+                    <p className="text-xs text-secondary font-sans leading-relaxed mt-1">
+                      Earn Experience Points (XP) by completing practice challenges, mock interviews, and system designs.
+                    </p>
+                  </div>
+                  <div className="py-6 flex flex-col gap-3.5">
+                    <div className="flex justify-between text-xs font-mono font-bold text-foreground">
+                      <span>{currentLevelXP} / 1000 XP</span>
+                      <span>{xpPercent}%</span>
+                    </div>
+                    <div className="w-full bg-inset border border-border h-3 rounded-full overflow-hidden">
+                      <div className="bg-foreground h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%` }} />
+                    </div>
+                  </div>
+                  <div className="border-t border-border pt-4 mt-2 flex justify-between items-center text-xs text-secondary font-mono font-bold">
+                    <span>Practice Streak:</span>
+                    <span className="text-yellow">{state.streak} Days Practice 🔥</span>
+                  </div>
+                </div>
+
+                {/* Recommendations and history analytics */}
+                <div className="p-6 rounded-xl border border-border bg-surface flex flex-col justify-between gap-6 shadow-sm">
+                  <div>
+                    <span className="text-xs text-secondary font-mono">// COACH RECOMMENDATIONS</span>
+                    <h3 className="text-base font-bold text-foreground mt-1 font-sans">Study Recommendation Agenda</h3>
+                  </div>
+
+                  <div className="flex-1 flex flex-col gap-4.5 font-sans justify-center text-sm">
+                    <div className="p-4 rounded-lg bg-inset border border-border leading-relaxed flex gap-3">
+                      <span className="text-xl select-none">💡</span>
+                      <div>
+                        <strong className="text-foreground font-sans">Next Practice Target Recommendation:</strong>
+                        <p className="text-xs text-secondary mt-1 font-sans">
+                          {(() => {
+                            const keys = ["coding", "debugging", "systemDesign", "communication", "aiFluency", "behavioral"];
+                            const lowestKey = keys.reduce((min, k) => (breakdown[k as keyof typeof breakdown] < breakdown[min as keyof typeof breakdown] ? k : min), "coding");
+                            
+                            switch (lowestKey) {
+                              case "coding": return "Your algorithmic complexity index has room for growth. Target 'Algorithms' tags in the practice catalog.";
+                              case "debugging": return "Boundary errors and crash safety are your current bottleneck. Practice 'Debugging' challenge tasks in the catalog.";
+                              case "systemDesign": return "Distributed database sharding and caching queue designs need reinforcement. Set up a 'System Design' mock setup run.";
+                              case "communication": return "Explaining tradeoff choices under interview mock pressure is key. Run dynamic 'Real Interview' voice modes.";
+                              case "aiFluency": return "Verify helper snippets properly to improve prompt structure usage metrics. Practice 'AI-Assisted' interview modules.";
+                              case "behavioral": return "Build structured workplace essays. Practice STAR methodology layout options inside the 'Behavioral' wizard mode.";
+                              default: return "Complete more sessions to update customized AI practice study plans.";
+                            }
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs border-t border-border pt-4 font-mono select-none">
+                      <span className="text-secondary font-semibold">Total Sessions:</span>
+                      <span className="text-foreground font-bold">{state.history.length} completed</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs border-t border-border pt-2.5 font-mono select-none">
+                      <span className="text-secondary font-semibold">Unlocked Badges:</span>
+                      <span className="text-foreground font-bold">{state.unlockedBadges.length} earned</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

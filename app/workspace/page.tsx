@@ -148,11 +148,7 @@ const evaluateUserCode = (code: string, challenge: any, lang: string, tc: any) =
   // 4. Strict Heuristics checking for all other templates/languages
   // We can write custom rules based on the challenge ID to make sure they solved it!
 
-  // Rule A: Hardcoding check
-  // If their code is very short (e.g. less than starter code + 20 chars) and does not contain logic expressions
-  if (code.length < challenge.starterCode.length + 15) {
-    return { passed: false, output: `AssertionError: Solution is too short. Please write the complete algorithm.` };
-  }
+
 
   // Rule B: specific challenge verification checks
   switch (challenge.id) {
@@ -344,6 +340,57 @@ function WorkspaceIDE() {
   const router = useRouter();
   const { state, addMatch, toggleTheme } = useStore();
 
+  const renderMessageText = (text: string) => {
+    const parts = text.split(/```/g);
+    if (parts.length === 1) {
+      return <p className="whitespace-pre-wrap">{text}</p>;
+    }
+
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        {parts.map((part, index) => {
+          if (index % 2 !== 0) {
+            const lines = part.split("\n");
+            let language = "";
+            let codeContent = part;
+            
+            if (lines.length > 0 && /^[a-zA-Z0-9#+-]+$/.test(lines[0].trim())) {
+              language = lines[0].trim();
+              codeContent = lines.slice(1).join("\n");
+            }
+            
+            codeContent = codeContent.trim();
+            
+            return (
+              <div key={index} className="my-2 rounded-lg border border-border bg-inset overflow-hidden flex flex-col font-mono text-xs w-full max-w-full">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-surface border-b border-border select-none text-[10px] text-secondary">
+                  <span>{language.toUpperCase() || "CODE"}</span>
+                  <button
+                    onClick={() => {
+                      setCode(codeContent);
+                      if (editorRef.current) {
+                        editorRef.current.setValue(codeContent);
+                      }
+                    }}
+                    className="px-2 py-0.5 rounded border border-border hover:bg-elevated hover:text-foreground text-secondary font-sans font-bold cursor-pointer transition-all"
+                  >
+                    Apply to Editor
+                  </button>
+                </div>
+                <pre className="p-3 overflow-x-auto text-[13px] leading-relaxed max-w-full whitespace-pre select-text">
+                  <code>{codeContent}</code>
+                </pre>
+              </div>
+            );
+          } else {
+            if (!part.trim()) return null;
+            return <p key={index} className="whitespace-pre-wrap">{part}</p>;
+          }
+        })}
+      </div>
+    );
+  };
+
   const [challenge, setChallenge] = useState<GeneratedChallenge | null>(null);
   const [code, setCode] = useState("");
   const [activeTab, setActiveTab] = useState<"instructions" | "hints" | "stack">("instructions");
@@ -354,6 +401,15 @@ function WorkspaceIDE() {
   const [selectedAgent, setSelectedAgent] = useState<"Interviewer" | "Bug Hunter" | "Reviewer" | "Assistant">("Interviewer");
   const [testResults, setTestResults] = useState<{ id: string; name: string; status: "idle" | "running" | "passed" | "failed"; output?: string; isHidden?: boolean }[]>([]);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
+  const [agentMode, setAgentMode] = useState(true);
+
+  useEffect(() => {
+    if (!agentMode) {
+      setSelectedAgent("Assistant");
+    } else {
+      setSelectedAgent("Interviewer");
+    }
+  }, [agentMode]);
 
   // Rules configuration loaded from setup
   const [aiAssistantActive, setAiAssistantActive] = useState(true);
@@ -1117,8 +1173,8 @@ function WorkspaceIDE() {
                     <span className="text-foreground font-mono font-bold">{challenge.framework}</span>
                   </div>
                   <div className="flex justify-between border-b border-border pb-2.5">
-                    <span className="text-foreground font-semibold">Benchmark Rating</span>
-                    <span className="text-foreground font-bold">{challenge.difficultyRating} ELO</span>
+                    <span className="text-foreground font-semibold">Difficulty</span>
+                    <span className="text-foreground font-bold">{challenge.level}</span>
                   </div>
                 </div>
                 <div className="p-5 rounded-xl bg-inset border border-border text-[16.5px] text-foreground mt-5 leading-relaxed shadow-sm">
@@ -1192,7 +1248,7 @@ function WorkspaceIDE() {
                   className={`h-full flex items-center gap-1.5 border-b-2 px-1 transition-all ${consoleTab === "problems" ? "border-foreground text-foreground bg-elevated/10" : "border-transparent hover:text-foreground cursor-pointer"}`}
                 >
                   <AlertTriangle className={`w-4 h-4 ${diagnostics.filter(d => d.type !== "strong-move" && d.type !== "excellent-tradeoff").length > 0 ? "text-red animate-pulse" : "text-secondary"}`} />
-                  Problems ({diagnostics.length})
+                  Problems ({diagnostics.filter(d => d.type !== "strong-move" && d.type !== "excellent-tradeoff").length})
                 </button>
               </div>
 
@@ -1230,8 +1286,8 @@ function WorkspaceIDE() {
                         <div
                           key={idx}
                           className={`p-3 rounded-lg border flex gap-3 leading-relaxed transition-all ${isGoodMove
-                            ? "bg-indigo-950/20 border-indigo-900/40 text-indigo-400"
-                            : "bg-red-950/20 border-red-900/40 text-rose-400"
+                            ? "bg-emerald-500/10 dark:bg-indigo-950/20 border-emerald-500/20 dark:border-indigo-900/40 text-emerald-700 dark:text-indigo-400"
+                            : "bg-rose-500/10 dark:bg-red-950/20 border-rose-500/20 dark:border-red-900/40 text-rose-700 dark:text-rose-400"
                             }`}
                         >
                           <div className="mt-0.5 shrink-0">
@@ -1301,22 +1357,29 @@ function WorkspaceIDE() {
             {activeRightTab === "chat" && (
               <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Agent Selector Header */}
-                <div className="p-3 border-b border-border bg-surface flex gap-1.5 overflow-x-auto select-none no-scrollbar">
-                  {Object.keys(AGENT_PROFILES)
-                    .filter(a => a !== "Coach" && a !== "Test Runner" && (a !== "Assistant" || aiAssistantActive))
-                    .map((agentName) => {
-                      const prof = AGENT_PROFILES[agentName];
-                      return (
-                        <button
-                          key={agentName}
-                          onClick={() => setSelectedAgent(agentName as any)}
-                          className={`px-3.5 py-1.5 rounded-lg border text-sm font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
-                        >
-                          {prof.avatar} {prof.name.split(" ")[0]}
-                        </button>
-                      );
-                    })}
-                </div>
+                {agentMode ? (
+                  <div className="p-3 border-b border-border bg-surface flex gap-1.5 overflow-x-auto select-none no-scrollbar">
+                    {Object.keys(AGENT_PROFILES)
+                      .filter(a => a !== "Coach" && a !== "Test Runner" && (a !== "Assistant" || aiAssistantActive))
+                      .map((agentName) => {
+                        const prof = AGENT_PROFILES[agentName];
+                        return (
+                          <button
+                            key={agentName}
+                            onClick={() => setSelectedAgent(agentName as any)}
+                            className={`px-3.5 py-1.5 rounded-lg border text-sm font-bold tracking-wider transition-all whitespace-nowrap cursor-pointer ${selectedAgent === agentName ? "border-foreground text-foreground bg-elevated" : "border-border text-secondary hover:border-border-muted"}`}
+                          >
+                            {prof.avatar} {prof.name.split(" ")[0]}
+                          </button>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="p-3 border-b border-border bg-surface text-xs font-mono text-secondary select-none flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green animate-pulse" />
+                    <span>Basic AI Coding Chatbot Active</span>
+                  </div>
+                )}
 
                 {/* Chat Message Stream */}
                 <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-background select-text">
@@ -1335,29 +1398,57 @@ function WorkspaceIDE() {
                             <span>{msg.time}</span>
                           </div>
                           <div className={`p-3.5 rounded-xl text-[15px] leading-relaxed max-w-[85%] border ${isUser ? "bg-foreground border-foreground text-background rounded-tr-none font-medium" : "bg-surface border-border text-foreground rounded-tl-none font-sans"}`}>
-                            {msg.text}
+                            {renderMessageText(msg.text)}
                           </div>
                         </div>
                       );
                     })}
                 </div>
 
-                {/* Text box input drawer */}
-                <div className="p-3 border-t border-border bg-surface flex gap-2.5 select-none">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                    placeholder={`Reply to ${AGENT_PROFILES[selectedAgent]?.name}...`}
-                    className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-[15px] text-foreground placeholder-muted focus:border-border-active outline-none transition-colors"
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    className="w-9.5 h-9.5 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer shrink-0"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
+                {/* Text box input drawer (LeetCode Style Layout) */}
+                <div className="p-3.5 border-t border-border bg-surface select-none flex flex-col gap-2.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                      placeholder={agentMode ? `Interact with ${AGENT_PROFILES[selectedAgent]?.name}...` : "Ask a coding question..."}
+                      className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-[15px] text-foreground placeholder-muted focus:border-border-active outline-none transition-colors font-sans"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    {/* Model selector pill */}
+                    <div className="px-3 py-1.5 rounded-full bg-inset border border-border flex items-center gap-1.5 text-xs text-secondary font-mono font-semibold select-none cursor-pointer hover:border-border-muted transition-colors">
+                      <span className="w-2 h-2 rounded-full bg-blue" />
+                      <span>
+                        {state.aiProvider === "built-in" ? "Gemini 1.5 Flash" : 
+                         state.aiProvider === "openai" ? `GPT: ${state.aiModel || "gpt-4o"}` :
+                         state.aiProvider === "anthropic" ? `Claude: ${state.aiModel || "claude"}` :
+                         state.aiProvider === "custom" ? "Custom Agent" : "Gemini 1.5 Flash"}
+                      </span>
+                    </div>
+
+                    {/* Agent toggle & Send Button */}
+                    <div className="flex items-center gap-4.5 select-none">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-mono font-bold uppercase tracking-wider ${agentMode ? "text-blue" : "text-muted"}`}>Agent</span>
+                        <button
+                          onClick={() => setAgentMode(!agentMode)}
+                          className={`w-11 h-6 rounded-full p-0.5 transition-all duration-300 relative focus:outline-none ${agentMode ? "bg-blue" : "bg-inset border border-border"}`}
+                        >
+                          <span className={`w-5 h-5 rounded-full bg-foreground shadow-md block transform duration-300 ${agentMode ? "translate-x-5" : "translate-x-0"}`} />
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={handleSendMessage}
+                        className="w-8.5 h-8.5 rounded-lg bg-foreground hover:opacity-90 transition-colors flex items-center justify-center text-background cursor-pointer shrink-0 shadow-sm"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

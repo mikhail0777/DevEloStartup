@@ -34,7 +34,7 @@ export default function LoginPage() {
         return;
       }
 
-      loginUser(data.user.name, data.user.email);
+      loginUser(data.user);
       router.push("/dashboard");
     } catch {
       setError("Network error. Try again.");

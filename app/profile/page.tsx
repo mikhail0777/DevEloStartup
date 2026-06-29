@@ -9,8 +9,11 @@ import {
 } from "lucide-react";
 
 export default function UserProfile() {
-  const { state, getCareerRank, setGeminiApiKey, resetState, updateUser, toggleTheme } = useStore();
-  const [apiKeyInput, setApiKeyInput] = useState(state.geminiApiKey);
+  const { state, getCareerRank, updateAiProviderSettings, resetState, updateUser, toggleTheme, logoutUser } = useStore();
+  const [aiProviderInput, setAiProviderInput] = useState(state.aiProvider || "built-in");
+  const [aiModelInput, setAiModelInput] = useState(state.aiModel || "");
+  const [aiApiKeyInput, setAiApiKeyInput] = useState(state.aiApiKey || "");
+  const [aiEndpointInput, setAiEndpointInput] = useState(state.aiEndpoint || "");
   const [showSavedMsg, setShowSavedMsg] = useState(false);
   
   const [usernameInput, setUsernameInput] = useState("");
@@ -42,17 +45,20 @@ export default function UserProfile() {
     { name: "Hackathon Finalist", icon: "🏆", desc: "Completed a Solo Hackathon sprint projectbrief." }
   ];
 
-  const handleSaveApiKey = () => {
-    setGeminiApiKey(apiKeyInput);
+  const handleSaveAiSettings = () => {
+    updateAiProviderSettings(aiProviderInput, aiModelInput, aiApiKeyInput, aiEndpointInput);
     setShowSavedMsg(true);
     setTimeout(() => {
       setShowSavedMsg(false);
     }, 3000);
   };
 
-  const handleClearApiKey = () => {
-    setApiKeyInput("");
-    setGeminiApiKey("");
+  const handleClearAiSettings = () => {
+    setAiProviderInput("built-in");
+    setAiModelInput("");
+    setAiApiKeyInput("");
+    setAiEndpointInput("");
+    updateAiProviderSettings("built-in", "", "", "");
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -70,7 +76,7 @@ export default function UserProfile() {
       <div className="min-h-screen bg-background text-foreground flex flex-col font-mono selection:bg-zinc-800 selection:text-white">
         {/* Navigation Header */}
         <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border select-none font-mono">
-          <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="max-w-[92%] mx-auto px-6 h-16 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/dashboard" className="text-secondary hover:text-foreground transition-colors">
                 <ArrowLeft className="w-5 h-5" />
@@ -85,6 +91,15 @@ export default function UserProfile() {
               >
                 {state.theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
               </button>
+              <button
+                onClick={() => {
+                  logoutUser();
+                  window.location.href = "/login";
+                }}
+                className="px-4 py-2 text-xs font-semibold border border-border rounded-md bg-surface text-secondary hover:text-foreground hover:border-border-muted transition-all cursor-pointer font-mono"
+              >
+                Sign Out
+              </button>
               <div className="flex items-center gap-3">
                 <img src="/develiq_logo.jpg" alt="Develiq Logo" className="w-8 h-8 rounded object-cover border border-border bg-surface" />
                 <span className="text-xl font-bold tracking-wider text-foreground select-none hidden sm:inline">
@@ -95,7 +110,7 @@ export default function UserProfile() {
           </div>
         </header>
 
-        <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 flex flex-col gap-10">
+        <main className="flex-1 max-w-[92%] w-full mx-auto px-6 py-12 flex flex-col gap-10">
           
           {/* User Card Row */}
           <div className="grid md:grid-cols-3 gap-8 items-stretch select-none">
@@ -117,7 +132,6 @@ export default function UserProfile() {
                 <div>
                   <h2 className="text-lg font-bold text-foreground tracking-wide font-mono">{state.user?.name || "Developer"}</h2>
                   <span className="text-xs text-secondary block font-sans mt-0.5">{state.user?.email || "no-email@develiq.com"}</span>
-                  <span className="text-xs text-blue font-semibold uppercase tracking-wider block mt-2 font-mono">{careerRank}</span>
                 </div>
 
                 <div className="w-full h-px bg-border my-2" />
@@ -132,7 +146,7 @@ export default function UserProfile() {
                     <span className="text-red">&quot;email&quot;</span>: <span className="text-green">&quot;{state.user?.email}&quot;</span>,
                   </div>
                   <div className="pl-4 font-mono">
-                    <span className="text-blue">&quot;ratingElo&quot;</span>: <span className="text-blue">{state.rating}</span>,
+                    <span className="text-blue">&quot;experienceXp&quot;</span>: <span className="text-blue">{state.xp}</span>,
                   </div>
                   <div className="pl-4 font-mono">
                     <span className="text-blue">&quot;streakDays&quot;</span>: <span className="text-blue">{state.streak}</span>
@@ -231,13 +245,13 @@ export default function UserProfile() {
             </div>
           </div>
 
-          {/* Gemini API Key Drawer */}
+          {/* Custom API / Agent provider config Drawer */}
           <div className="rounded-xl border border-border bg-surface overflow-hidden flex flex-col justify-between select-none">
             {/* Tab header */}
             <div className="flex items-center justify-between px-4 py-2 bg-inset/40 border-b border-border text-xs text-secondary select-none">
               <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${state.geminiApiKey ? "bg-green" : "bg-blue"}`} />
-                <span className="text-[10px] text-secondary">engine_config.json</span>
+                <span className={`w-2 h-2 rounded-full ${state.aiApiKey || state.aiEndpoint ? "bg-green" : "bg-blue"}`} />
+                <span className="text-[10px] text-secondary">agent_provider_config.json</span>
               </div>
               <span className="text-[9px] uppercase tracking-wider font-bold text-muted">CONF</span>
             </div>
@@ -245,49 +259,92 @@ export default function UserProfile() {
             <div className="p-6 flex-1 flex flex-col justify-between gap-6">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-muted uppercase tracking-wider">// COMPILER AI MODEL CONFIG (OPTIONAL)</span>
-                  <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-inset ${state.geminiApiKey ? "text-green border-green" : "text-blue border-blue"}`}>
-                    {state.geminiApiKey ? "Custom LLM Connected" : "Built-in LLM Active"}
+                  <span className="text-xs font-mono text-muted uppercase tracking-wider">// COMPILER AI MODEL CONFIG (CUSTOM AGENTS)</span>
+                  <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-inset ${state.aiProvider !== "built-in" ? "text-green border-green" : "text-blue border-blue"}`}>
+                    {state.aiProvider !== "built-in" ? "Custom Agent Connected" : "Built-in LLM Active"}
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-foreground font-mono">Custom IDE Helper Integration</h3>
                 <p className="text-xs text-secondary leading-relaxed font-sans mt-1">
-                  Develiq includes a **built-in AI interviewer model** trained to conduct mock sessions and evaluate your code. **No custom key is needed** to practice coding or run mock interviews on the platform.
-                  <br /><br />
-                  However, if you would like to connect a custom backend AI helper directly inside the editor compiler to guide you while writing code, you can input a personal **Gemini API Key** below.
+                  Connect custom backend agent endpoints, OpenAI Codex models, Anthropic Claude, or use local custom MCP webhooks to guide you while writing code.
                 </p>
               </div>
 
               <div className="flex flex-col gap-4 font-mono select-text">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 flex items-center bg-inset border border-border rounded-lg overflow-hidden focus-within:border-border-active transition-colors">
-                    <span className="text-xs text-muted pl-4 select-none font-mono">key:</span>
+                {/* Provider Selector */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-secondary font-mono">AI Provider</label>
+                  <select
+                    value={aiProviderInput}
+                    onChange={(e) => setAiProviderInput(e.target.value as any)}
+                    className="bg-inset border border-border p-3 rounded-lg text-xs font-medium focus:border-border-active text-foreground outline-none w-full font-mono cursor-pointer"
+                  >
+                    <option value="built-in">Built-in Develiq Sandbox (Mock Mode)</option>
+                    <option value="gemini">Google Gemini AI</option>
+                    <option value="openai">OpenAI API (Codex / GPT-4)</option>
+                    <option value="anthropic">Anthropic Claude API</option>
+                    <option value="custom">Custom Agent Endpoint (MCP Webhook)</option>
+                  </select>
+                </div>
+
+                {aiProviderInput !== "built-in" && aiProviderInput !== "custom" && (
+                  <>
+                    {/* API Key */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-secondary font-mono">API Key</label>
+                      <input 
+                        type="password"
+                        value={aiApiKeyInput}
+                        onChange={(e) => setAiApiKeyInput(e.target.value)}
+                        placeholder="Paste Provider API Key..."
+                        className="bg-inset border border-border rounded-lg py-3 px-3 text-xs text-foreground placeholder-muted outline-none font-mono"
+                      />
+                    </div>
+
+                    {/* Model Name */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-secondary font-mono">Model Name</label>
+                      <input 
+                        type="text"
+                        value={aiModelInput}
+                        onChange={(e) => setAiModelInput(e.target.value)}
+                        placeholder={aiProviderInput === "openai" ? "gpt-4o" : "claude-3-5-sonnet-20241022"}
+                        className="bg-inset border border-border rounded-lg py-3 px-3 text-xs text-foreground placeholder-muted outline-none font-mono"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {aiProviderInput === "custom" && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-secondary font-mono">MCP Webhook Endpoint URL</label>
                     <input 
-                      type="password"
-                      value={apiKeyInput}
-                      onChange={(e) => setApiKeyInput(e.target.value)}
-                      placeholder={state.geminiApiKey ? "••••••••••••••••••••••••" : "Paste optional Gemini API Key..."}
-                      className="flex-1 bg-transparent border-0 py-3 px-3 text-xs text-foreground placeholder-muted outline-none font-mono"
+                      type="text"
+                      value={aiEndpointInput}
+                      onChange={(e) => setAiEndpointInput(e.target.value)}
+                      placeholder="http://localhost:3000/api/my-agent"
+                      className="bg-inset border border-border rounded-lg py-3 px-3 text-xs text-foreground placeholder-muted outline-none font-mono"
                     />
                   </div>
-                  {state.geminiApiKey && (
+                )}
+
+                <div className="flex items-center gap-3 mt-2 select-none justify-between">
+                  <div className="flex gap-2">
                     <button 
-                      onClick={handleClearApiKey}
-                      className="p-3 border border-red/30 hover:border-red hover:bg-red/5 transition-all rounded-lg text-red cursor-pointer"
-                      title="Clear Key"
+                      onClick={handleSaveAiSettings}
+                      className="px-6 py-2.5 rounded-lg bg-foreground text-background hover:opacity-90 text-xs font-bold transition-all cursor-pointer font-mono"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      Save Settings
                     </button>
-                  )}
-                </div>
-                
-                <div className="flex items-center justify-between select-none">
-                  <button 
-                    onClick={handleSaveApiKey}
-                    className="px-6 py-2.5 rounded-lg bg-foreground text-background hover:opacity-90 text-xs font-bold transition-all cursor-pointer"
-                  >
-                    Save API Key
-                  </button>
+                    {(state.aiApiKey || state.aiEndpoint) && (
+                      <button 
+                        onClick={handleClearAiSettings}
+                        className="px-4 py-2.5 rounded-lg border border-red/35 text-red hover:bg-red/5 transition-all text-xs font-bold cursor-pointer font-mono"
+                      >
+                        Reset Provider
+                      </button>
+                    )}
+                  </div>
                   {showSavedMsg && (
                     <span className="text-xs text-green flex items-center gap-1.5">
                       <Check className="w-4 h-4" /> // config.saved = true;

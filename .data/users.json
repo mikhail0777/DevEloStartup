@@ -1,0 +1,110 @@
+{
+  "users": [
+    {
+      "id": "da98dfe6-8259-465b-888b-e70de82e7224",
+      "name": "test1",
+      "email": "test1@gmail.com",
+      "passwordHash": "18af537ff7ff0f475096c1c71e0e99a6b6e732b71236af2329a8fc04c1b9ef726f55894a51f196e861519cdae3e76db8491da1af8f8bf04a209e5f0929176823",
+      "salt": "2a786f2067a9318f71e28824697b125a",
+      "subscription": "pro",
+      "progress": {
+        "xp": 1500,
+        "streak": 0,
+        "streakDates": [],
+        "rating": 1000,
+        "offerReadiness": 82,
+        "unlockedBadges": [
+          "Bug Hunter",
+          "React Ready"
+        ],
+        "completedLevels": [],
+        "history": [
+          {
+            "id": "match-1782758403016",
+            "title": "Sum of Two Numbers",
+            "role": "Developer",
+            "level": "Beginner / Intro",
+            "mode": "Coding Arena",
+            "language": "JavaScript",
+            "framework": "React",
+            "date": "2026-06-29",
+            "overallScore": 100,
+            "eloChange": 0,
+            "passedCount": 2,
+            "totalCount": 2,
+            "mistakes": [
+              {
+                "id": "guard-missing",
+                "type": "critical-miss",
+                "title": "Missing Defensive Guard",
+                "description": "Critical omission: The service lacks boundary check gates. Malformed, empty, or null arguments will cause a runtime crash.",
+                "line": 3
+              }
+            ],
+            "feedback": "Phenomenal performance! You handled validations beautifully.",
+            "ratingBefore": 1000,
+            "ratingAfter": 1000
+          },
+          {
+            "id": "match-1782709440879",
+            "title": "Sum of Two Numbers",
+            "role": "Developer",
+            "level": "Beginner / Intro",
+            "mode": "Coding Arena",
+            "language": "JavaScript",
+            "framework": "React",
+            "date": "2026-06-29",
+            "overallScore": 50,
+            "eloChange": 0,
+            "passedCount": 0,
+            "totalCount": 2,
+            "mistakes": [
+              {
+                "id": "guard-missing",
+                "type": "critical-miss",
+                "title": "Missing Defensive Guard",
+                "description": "Critical omission: The service lacks boundary check gates. Malformed, empty, or null arguments will cause a runtime crash.",
+                "line": 3
+              }
+            ],
+            "feedback": "Good attempt, but your solution did not pass all the test cases. Double‑check your logic and edge case handling.",
+            "ratingBefore": 1000,
+            "ratingAfter": 1000
+          },
+          {
+            "id": "match-1782434874817",
+            "title": "Hello Develiq!",
+            "role": "Developer",
+            "level": "Beginner / Intro",
+            "mode": "Coding Arena",
+            "language": "JavaScript",
+            "framework": "React",
+            "date": "2026-06-26",
+            "overallScore": 100,
+            "eloChange": 0,
+            "passedCount": 1,
+            "totalCount": 1,
+            "mistakes": [
+              {
+                "id": "guard-missing",
+                "type": "critical-miss",
+                "title": "Missing Defensive Guard",
+                "description": "Critical omission: The service lacks boundary check gates. Malformed, empty, or null arguments will cause a runtime crash.",
+                "line": 3
+              }
+            ],
+            "feedback": "Phenomenal performance! You handled validations beautifully.",
+            "ratingBefore": 1000,
+            "ratingAfter": 1000
+          }
+        ]
+      },
+      "createdAt": "2026-06-26T00:45:11.785Z",
+      "updatedAt": "2026-06-29T18:40:03.529Z",
+      "aiProvider": "built-in",
+      "aiModel": "",
+      "aiApiKey": "",
+      "aiEndpoint": ""
+    }
+  ]
+}
