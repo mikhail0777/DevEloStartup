@@ -839,6 +839,16 @@ function WorkspaceIDE() {
       const clean = text.replace(/`[^`]+`/g, "").replace(/\*+/g, "");
       const utterance = new SpeechSynthesisUtterance(clean);
       
+      const voices = window.speechSynthesis.getVoices();
+      const englishVoice = voices.find(v => v.lang.startsWith("en-US") || v.lang.startsWith("en"));
+      if (englishVoice) {
+        utterance.voice = englishVoice;
+      }
+
+      utterance.volume = 1.0;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      
       utterance.onend = () => {
         if (voiceChatActiveRef.current && recognitionRef.current) {
           try {
@@ -847,6 +857,8 @@ function WorkspaceIDE() {
         }
       };
 
+      // Resume speech synthesis queue to prevent browser freezes, then play
+      window.speechSynthesis.resume();
       window.speechSynthesis.cancel(); // Cancel active speeches
       window.speechSynthesis.speak(utterance);
     }
@@ -1029,11 +1041,13 @@ function WorkspaceIDE() {
 
     if (voiceChatActive) {
       setVoiceChatActive(false);
+      setVoiceActive(false);
       try {
         recognitionRef.current.stop();
       } catch (e) {}
     } else {
       setVoiceChatActive(true);
+      setVoiceActive(true);
       try {
         recognitionRef.current.start();
       } catch (e) {
