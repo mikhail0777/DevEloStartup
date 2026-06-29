@@ -20,39 +20,21 @@ export const AGENT_PROFILES: Record<string, AgentProfile> = {
     color: "#00E5FF",
     accentClass: "border-cyan-glow bg-cyan-950/20 text-cyan-400"
   },
-  Reviewer: {
-    id: "reviewer",
-    name: "Clean-Code Carl",
-    role: "Senior Code Reviewer",
-    avatar: "🧐",
-    description: "Obsessed with clean structures, descriptive variable naming, defensive coding, and maintainability.",
-    color: "#6366F1",
-    accentClass: "border-indigo-glow bg-indigo-950/20 text-indigo-400"
-  },
-  "Test Runner": {
-    id: "testrunner",
-    name: "Edge-Case Ethan",
-    role: "Validation Sandbox Engineer",
-    avatar: "🧪",
-    description: "Strict quality assurance bot that tests boundaries, empty payloads, duplicate keys, and latency overflows.",
-    color: "#10B981",
-    accentClass: "border-emerald-glow bg-emerald-950/20 text-emerald-400"
-  },
-  "Bug Hunter": {
-    id: "bughunter",
+  Debugger: {
+    id: "debugger",
     name: "Debugger Dan",
-    role: "Fault & Warning Locator",
+    role: "Interactive Code Debugger",
     avatar: "👾",
-    description: "Instantly spots index out-of-bounds, unhandled exceptions, and memory leaks before compiler runs.",
+    description: "Instantly spots bugs, off-by-one errors, and helps you debug compiler/execution crashes.",
     color: "#FF1744",
     accentClass: "border-rose-glow bg-rose-950/20 text-rose-400"
   },
-  Coach: {
-    id: "coach",
-    name: "Mentor Mindy",
-    role: "Interview Career Coach",
+  LiveInterviewer: {
+    id: "liveinterviewer",
+    name: "AI Interviewer",
+    role: "Live Tech Interviewer",
     avatar: "🧠",
-    description: "Analyzes ELO progress, evaluates explanation clarity, and provides personalized daily practice agendas.",
+    description: "Conducts a real-time coding interview, observing your keystrokes live, probing logic edge-cases, and asking behavioral follow-ups.",
     color: "#FFC107",
     accentClass: "border-amber-glow bg-amber-950/20 text-amber-400"
   },

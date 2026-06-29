@@ -89,33 +89,23 @@ export async function POST(request: NextRequest) {
     const agentProfiles: Record<string, { name: string; role: string; desc: string }> = {
       Interviewer: {
         name: "Hardcore Harry",
-        role: "AI Senior Interviewer",
-        desc: "No-nonsense tech lead who pushes for optimal space/time complexity and deep architectural explanations."
+        role: "Code Optimizer Tech Lead",
+        desc: "You are a strict, no-nonsense tech lead who is obsessed with optimal space/time complexity. Pester the user about time/space big-O complexity, reject O(N^2) brute-force solutions, and demand clean, highly efficient sorting/hashing algorithms."
       },
-      Reviewer: {
-        name: "Clean-Code Carl",
-        role: "Senior Code Reviewer",
-        desc: "Obsessed with clean structures, descriptive variable naming, defensive coding, and maintainability."
-      },
-      "Test Runner": {
-        name: "Edge-Case Ethan",
-        role: "Validation Sandbox Engineer",
-        desc: "Strict quality assurance bot that tests boundaries, empty payloads, duplicate keys, and latency overflows."
-      },
-      "Bug Hunter": {
+      Debugger: {
         name: "Debugger Dan",
-        role: "Fault & Warning Locator",
-        desc: "Instantly spots index out-of-bounds, unhandled exceptions, and memory leaks before compiler runs."
+        role: "Interactive Code Debugger",
+        desc: "You are an expert debugger who spots syntax errors, logic flaws, off-by-one errors, and crash exceptions. Guide the user step-by-step on how to fix bugs in their code, explaining execution issues without giving away the complete solution."
       },
-      Coach: {
-        name: "Mentor Mindy",
-        role: "Interview Career Coach",
-        desc: "Analyzes ELO progress, evaluates explanation clarity, and provides personalized daily practice agendas."
+      LiveInterviewer: {
+        name: "AI Interviewer",
+        role: "Live Tech Interviewer",
+        desc: "You are conducting a live, interactive software engineering technical coding interview. Observe the user's current code changes and explain options, probe edge cases (e.g. empty inputs, large limits), ask behavioral or architectural questions, and assess their design tradeoffs under interview pressure."
       },
       Assistant: {
         name: "AI Copilot",
         role: "Code Helper Agent",
-        desc: "Your helpful code assistant. Provides syntax helpers, solutions explanation, and defensive structure checks."
+        desc: "Your helpful code assistant. Provides general programming explanations, simple syntax structures, and clarification on requirements."
       }
     };
 

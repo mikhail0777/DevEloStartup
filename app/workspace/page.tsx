@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 interface ChatMessage {
-  sender: "User" | "Interviewer" | "Reviewer" | "Test Runner" | "Bug Hunter" | "Assistant";
+  sender: "User" | "Interviewer" | "Debugger" | "LiveInterviewer" | "Assistant";
   text: string;
   time: string;
 }
@@ -398,7 +398,7 @@ function WorkspaceIDE() {
   const [inputMessage, setInputMessage] = useState("");
   const [timer, setTimer] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<"Interviewer" | "Bug Hunter" | "Reviewer" | "Assistant">("Interviewer");
+  const [selectedAgent, setSelectedAgent] = useState<"Interviewer" | "Debugger" | "LiveInterviewer" | "Assistant">("Interviewer");
   const [testResults, setTestResults] = useState<{ id: string; name: string; status: "idle" | "running" | "passed" | "failed"; output?: string; isHidden?: boolean }[]>([]);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
   const [agentMode, setAgentMode] = useState(true);
@@ -423,6 +423,8 @@ function WorkspaceIDE() {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const decorationsRef = useRef<string[]>([]);
+  const liveObservationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastObservedCode = useRef("");
 
   const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
@@ -454,7 +456,7 @@ function WorkspaceIDE() {
       run: (ed: any) => {
         const selectionText = ed.getModel().getValueInRange(ed.getSelection());
         if (selectionText && selectionText.trim()) {
-          setSelectedAgent("Bug Hunter");
+          setSelectedAgent("Debugger");
           setInputMessage(`Can you locate any bugs or complexity blunders in this selection and suggest a fix?\n\n\`\`\`${challenge?.language || "javascript"}\n${selectionText}\n\`\`\``);
           setActiveRightTab("chat");
         }
@@ -792,6 +794,7 @@ function WorkspaceIDE() {
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (liveObservationTimeoutRef.current) clearTimeout(liveObservationTimeoutRef.current);
     };
   }, [router]);
 
@@ -806,6 +809,34 @@ function WorkspaceIDE() {
     }
   };
 
+  const triggerLiveObservation = async (currentCode: string) => {
+    if (!challenge || currentCode === lastObservedCode.current || currentCode.trim() === challenge.starterCode.trim()) return;
+    lastObservedCode.current = currentCode;
+
+    try {
+      const replyText = await getAgentResponse(
+        "LiveInterviewer",
+        "[System Live Keystroke Observation Check - The user has paused coding. Observe their solution progress, logic efficiency, and naming choices. Ask a short relevant question or make an observation. Under 2 sentences.]",
+        currentCode,
+        challenge.description,
+        state.geminiApiKey
+      );
+
+      const replyMsg: ChatMessage = {
+        sender: "LiveInterviewer",
+        text: replyText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setChatMessages(prev => [...prev, replyMsg]);
+      if (voiceActive) {
+        speak(replyText);
+      }
+    } catch (e) {
+      console.error("Live observation error:", e);
+    }
+  };
+
   // Observe code changes for triggers
   const handleCodeChange = (value: string | undefined) => {
     const val = value || "";
@@ -816,6 +847,16 @@ function WorkspaceIDE() {
     const codeLogs = scanUserCode(val, challenge?.language || "JavaScript");
     setDiagnostics(codeLogs);
 
+    // Live Interviewer Keystroke Observation Check
+    if (selectedAgent === "LiveInterviewer" && agentMode) {
+      if (liveObservationTimeoutRef.current) {
+        clearTimeout(liveObservationTimeoutRef.current);
+      }
+      liveObservationTimeoutRef.current = setTimeout(() => {
+        triggerLiveObservation(val);
+      }, 8000);
+    }
+
     // Check if line-count triggers are matched (e.g. prompt Interviewer when they write certain lines of code)
     const lineCount = val.split("\n").length;
 
@@ -824,14 +865,17 @@ function WorkspaceIDE() {
         if (lineCount >= trig.value && !triggeredLines.current[trig.value]) {
           triggeredLines.current[trig.value] = true;
 
+          let mappedAgent: any = trig.agent;
+          if (mappedAgent === "Bug Hunter") mappedAgent = "Debugger";
+
           const newMsg: ChatMessage = {
-            sender: trig.agent as any,
+            sender: mappedAgent as any,
             text: trig.message,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
 
           setChatMessages(prev => [...prev, newMsg]);
-          setSelectedAgent(trig.agent as any);
+          setSelectedAgent(mappedAgent as any);
           setActiveRightTab("chat");
 
           if (voiceActive) {
@@ -947,15 +991,15 @@ function WorkspaceIDE() {
       // Update results
       setTestResults(results);
 
-      // Detect runtime errors (missing guards) and trigger Bug Hunter once
+      // Detect runtime errors and trigger Debugger once
       const runtimeError = results.some(r => r.output?.toLowerCase().includes("typeerror") || r.output?.toLowerCase().includes("undefined"));
       if (runtimeError && !hasTriggeredFirstRun.current) {
         hasTriggeredFirstRun.current = true;
         const bugMsg =
-          "Aha! Edge‑Case Ethan here. Our test runner crashed on malformed inputs. " +
-          "The compiler threw a crash exception because of a missing boundary check. Fix this safety block immediately!";
-        setChatMessages(prev => [...prev, { sender: "Bug Hunter", text: bugMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-        setSelectedAgent("Bug Hunter");
+          "Aha! Debugger Dan here. Our execution sandbox threw a runtime or crash exception. " +
+          "Review your variables, loops, or returns to trace and isolate this error!";
+        setChatMessages(prev => [...prev, { sender: "Debugger", text: bugMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        setSelectedAgent("Debugger");
         setActiveRightTab("chat");
         if (voiceActive) speak(bugMsg);
       }
@@ -1422,10 +1466,10 @@ function WorkspaceIDE() {
                     <div className="px-3 py-1.5 rounded-full bg-inset border border-border flex items-center gap-1.5 text-xs text-secondary font-mono font-semibold select-none cursor-pointer hover:border-border-muted transition-colors">
                       <span className="w-2 h-2 rounded-full bg-blue" />
                       <span>
-                        {state.aiProvider === "built-in" ? "Gemini 1.5 Flash" : 
+                        {state.aiProvider === "built-in" ? "Gemini 2.5 Flash" : 
                          state.aiProvider === "openai" ? `GPT: ${state.aiModel || "gpt-4o"}` :
                          state.aiProvider === "anthropic" ? `Claude: ${state.aiModel || "claude"}` :
-                         state.aiProvider === "custom" ? "Custom Agent" : "Gemini 1.5 Flash"}
+                         state.aiProvider === "custom" ? "Custom Agent" : "Gemini 2.5 Flash"}
                       </span>
                     </div>
 
